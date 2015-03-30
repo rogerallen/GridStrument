@@ -15,21 +15,18 @@ public class GridView extends View {
     private ShapeDrawable mGridDrawable;
     private Path mIntersectPath, mIntersectPath1;
     private Paint mIntersectPaint, mIntersectPaint1;
-    private float touchX, touchY, curX, curY;
+    private float touchX, touchY, curX, curY, curPressure;
 
     public GridView(Context context) {
         super(context);
-        //init(null, 0);
     }
 
     public GridView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        //init(attrs, 0);
     }
 
     public GridView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
-        //init(attrs, defStyle);
     }
 
     @Override
@@ -65,7 +62,7 @@ public class GridView extends View {
         mIntersectPaint.setStrokeWidth(3.0f);
         mIntersectPath1 = new Path();
         mIntersectPaint1 = new Paint();
-        mIntersectPaint1.setColor(0xffAC7423);
+        mIntersectPaint1.setColor(0xffAC2374);
         mIntersectPaint1.setStyle(Paint.Style.STROKE);
         mIntersectPaint1.setStrokeWidth(1.0f);
     }
@@ -91,6 +88,7 @@ public class GridView extends View {
         mIntersectPath1.close();
         canvas.drawPath(mIntersectPath1, mIntersectPaint1);
 
+        canvas.drawCircle(100, 100, 100*curPressure, mIntersectPaint1);
     }
 
     @Override
@@ -100,6 +98,7 @@ public class GridView extends View {
         curX = x;
         curY = y;
         float p = ev.getPressure();
+        curPressure = p;
         final int nHistory = ev.getHistorySize();
         final int nPointers = ev.getPointerCount();
 
@@ -116,6 +115,7 @@ public class GridView extends View {
                 break;
             case MotionEvent.ACTION_UP:
                 //Log.d("onTouch", String.format("..up   x: %.2f y: %.2f p: %.2f nHist: %d, nPtr: %d", x-touchX, y-touchY, p, nHistory, nPointers));
+                curPressure = 0.0f;
                 this.invalidate();
                 break;
         }
