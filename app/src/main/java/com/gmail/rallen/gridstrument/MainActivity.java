@@ -1,5 +1,6 @@
 package com.gmail.rallen.gridstrument;
 
+import android.opengl.GLSurfaceView;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -8,10 +9,16 @@ import android.view.MenuItem;
 
 public class MainActivity extends ActionBarActivity {
 
+    private GLSurfaceView mGLView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.sample_grid_view);
+        //setContentView(R.layout.sample_grid_view);
+        // Create a GLSurfaceView instance and set it
+        // as the ContentView for this Activity.
+        mGLView = new GridGLSurfaceView(this);
+        setContentView(mGLView);
     }
 
 
