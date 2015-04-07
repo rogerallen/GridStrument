@@ -9,7 +9,6 @@ import de.humatic.nmj.NetworkMidiOutput;
 //import de.humatic.nmj.NetworkMidiInput;
 
 import android.content.Context;
-import android.opengl.GLSurfaceView;
 import android.os.AsyncTask;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -95,7 +94,7 @@ public class MainActivity extends ActionBarActivity implements NetworkMidiListen
             protected void onPostExecute(Object result) {
                 InitMidiSys();
             }
-            protected void onProgressUpdate(Integer... prg) {} // ???
+            //protected void onProgressUpdate(Integer... prg) {} // ???
         };
         at.execute(new Object[1]);
     }
@@ -113,6 +112,12 @@ public class MainActivity extends ActionBarActivity implements NetworkMidiListen
         int numChannels = NMJConfig.getNumChannels();
         Log.i("initMidiSys",String.format("channels: %d adbOk? %s", numChannels, adbAllowed));
         // if 3 channels, then add 1 ADB channel.  That's all we want.
+        if(numChannels > 4) {
+            Log.i("initMidiSys","Expecting only 4 channels. Resetting.");
+            NMJConfig.resetAll();
+            numChannels = NMJConfig.getNumChannels();
+            Log.i("initMidiSys",String.format("channels: %d", numChannels));
+        }
         if(numChannels == 3) {
             Log.i("initMidiSys","Adjusting from 3 default to 3+1 ADB channel.");
             // add 1 ADB channel
@@ -133,7 +138,7 @@ public class MainActivity extends ActionBarActivity implements NetworkMidiListen
     // nmj required overrides
     @Override
     public void midiReceived(int channel, int ssrc, byte[] data, long timestamp) {
-        Log.i("midiReceived", String.format("channel: %d ssrc: %d len: %d timestamp: %ld", channel, ssrc, data.length, timestamp));
+        Log.i("midiReceived", String.format("channel: %d ssrc: %d len: %d timestamp: %d", channel, ssrc, data.length, timestamp));
     }
     @Override
     public void systemChanged(int channel, int property, int value) {

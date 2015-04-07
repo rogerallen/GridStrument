@@ -26,7 +26,8 @@ public class GridGLSurfaceView extends GLSurfaceView {
     private byte[] mNoteOn    = new byte[]{(byte)0x90, (byte)0x44, (byte)100};
     private byte[] mNoteOff   = new byte[]{(byte)0x80, (byte)0x44, (byte)0};
     private byte[] mPitchBend = new byte[]{(byte)0xe0, (byte)0x00, (byte)0x40};
-    private byte[] mModWheel  = new byte[]{(byte)0xb0, (byte)0x01, (byte)0x00};
+    private byte[] mModWheel  = new byte[]{(byte)0xb0, (byte)0x01, (byte)0x00}; // modulation
+    //private byte[] mModWheel  = new byte[]{(byte)0xb0, (byte)0x02, (byte)0x00}; // breath control
 
     public GridGLSurfaceView(Context context){
         super(context);
@@ -47,8 +48,8 @@ public class GridGLSurfaceView extends GLSurfaceView {
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
 
-        float width = right-left;
-        float height = top-bottom;
+        float width = 200;//right-left;
+        float height = 200;//top-bottom;
         int N = 4;
         gridLines.reset();
         for(int i = 0; i <= N; i++) {
@@ -93,25 +94,17 @@ public class GridGLSurfaceView extends GLSurfaceView {
                 Matrix.translateM(mTouchMatrix, 0, mTouchX, mTouchY, 0.0f);
                 touchLines.setModelMatrix(mTouchMatrix);
                 this.requestUnbufferedDispatch(ev); // move events will not be buffered (Android L & later)
+                sendPitchBend(0);
+                sendModWheel(0);
                 updateNote();
-                try{
-                    mMidiOut.sendMidiOnThread(mNoteOn);
-                } catch (Exception ex){
-                    ex.printStackTrace();
-                }
+                sendNoteOn();
                 break;
             case MotionEvent.ACTION_MOVE:
                 //Log.d("onTouch", String.format("..move x: %.2f y: %.2f p: %.2f", mCurX-mTouchX, mCurY-mTouchY, mCurPressure));
                 float dx = mCurX-mTouchX;
                 float dy = mCurY-mTouchY;
-                updatePitchBend(dx);
-                updateModWheel(dy);
-                try {
-                    mMidiOut.sendMidiOnThread(mPitchBend);
-                    mMidiOut.sendMidiOnThread(mModWheel);
-                } catch (Exception ex){
-                    ex.printStackTrace();
-                }
+                sendPitchBend(dx);
+                sendModWheel(dy);
                 break;
             case MotionEvent.ACTION_UP:
                 //Log.d("onTouch", String.format("..up   x: %.2f y: %.2f p: %.2f nHist: %d, nPtr: %d", x-mTouchX, y-mTouchY, p, nHistory, nPointers));
@@ -119,15 +112,9 @@ public class GridGLSurfaceView extends GLSurfaceView {
                 Matrix.setIdentityM(mPressMatrix,0);
                 Matrix.translateM(mPressMatrix, 0, mCurPressure*dN, dN/2, 0.0f);
                 pressLines.setModelMatrix(mPressMatrix);
-                updatePitchBend(0);
-                updateModWheel(0);
-                try {
-                    mMidiOut.sendMidiOnThread(mPitchBend);
-                    mMidiOut.sendMidiOnThread(mModWheel);
-                    mMidiOut.sendMidiOnThread(mNoteOff);
-                } catch (Exception ex){
-                    ex.printStackTrace();
-                }
+                sendPitchBend(0);
+                sendModWheel(0);
+                sendNoteOff();
                 break;
         }
         return true;
@@ -138,18 +125,54 @@ public class GridGLSurfaceView extends GLSurfaceView {
         mNoteOn[1] = curNote;
         mNoteOff[1] = curNote;
     }
-    private void updatePitchBend(float delta) {
-        delta = 0x2000 + 0x1000*(delta/dN); // normalize
+
+    private void sendNoteOn() {
+        try{
+            mMidiOut.sendMidiOnThread(mNoteOn);
+        } catch (Exception ex){
+            ex.printStackTrace();
+        }
+    }
+
+    private void sendNoteOff() {
+        try {
+            mMidiOut.sendMidiOnThread(mNoteOff);
+        } catch (Exception ex){
+            ex.printStackTrace();
+        }
+    }
+
+    private void sendPitchBend(float delta) {
+        // FIXME pitchBend is not working perfectly...
+        delta = 0x2000 + 0x2000*(delta/dN); // normalize
         delta = (delta > 0x3fff) ? 0x3ffff : ((delta < 0) ? 0 : delta);
         int d = (int)delta;
-        mPitchBend[1] = (byte)(d & 0x7f);
-        mPitchBend[2] = (byte)((d>>7) & 0x7f);
+        boolean changed = !((mPitchBend[1] == (byte)(d & 0x7f)) &&
+                            (mPitchBend[2] == (byte)((d>>7) & 0x7f)));
+        if(changed) {
+            mPitchBend[1] = (byte)(d & 0x7f);
+            mPitchBend[2] = (byte)((d>>7) & 0x7f);
+            try {
+                mMidiOut.sendMidiOnThread(mPitchBend);
+            } catch (Exception ex){
+                ex.printStackTrace();
+            }
+        }
     }
-    private void updateModWheel(float delta) {
+
+    private void sendModWheel(float delta) {
         delta = 0x7f*(delta/dN); // normalize
         delta = (delta > 0x7f) ? 0x7f : ((delta < 0) ? 0 : delta);
         int d = (int)delta;
-        mModWheel[2] = (byte)(d & 0x7f);
+        boolean changed = !(mModWheel[2] == (byte)(d & 0x7f));
+        if(changed) {
+            mModWheel[2] = (byte)(d & 0x7f);
+            try {
+                mMidiOut.sendMidiOnThread(mModWheel);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
     }
 
     public void setMidiOutput(NetworkMidiOutput midiOut) {
