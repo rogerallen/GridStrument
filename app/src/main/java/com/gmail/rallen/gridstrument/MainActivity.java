@@ -26,6 +26,24 @@ public class MainActivity extends ActionBarActivity implements NetworkMidiListen
     private NetworkMidiOutput mMidiOut;
     //private NetworkMidiInput mMidiIn;
 
+    private byte[][] mNotesOffs = {// 120 = all sound off, 123 = all notes off
+            new byte[]{(byte)0xb0, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xb1, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xb2, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xb3, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xb4, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xb5, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xb6, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xb7, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xb8, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xb9, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xba, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xbb, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xbc, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xbd, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xbe, (byte)120, (byte)0x00},
+            new byte[]{(byte)0xbf, (byte)120, (byte)0x00},
+    };
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -62,8 +80,16 @@ public class MainActivity extends ActionBarActivity implements NetworkMidiListen
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true; // FIXME add something...
+        if (id == R.id.action_notes_off) {
+            Log.d("select","NOTES OFF!");
+            for(int c = 0; c < 16; c++) {
+                try {
+                    mMidiOut.sendMidiOnThread(mNotesOffs[c]);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -74,7 +100,6 @@ public class MainActivity extends ActionBarActivity implements NetworkMidiListen
         super.onDestroy();
         try{
             mMidiSys.exit();
-            // FIXME cleanup all but the one channel that I want
             int numChannels = NMJConfig.getNumChannels();
             Log.i("cleanup",String.format("4 numChannels: %d", numChannels));
             NMJConfig.cleanup(4, null);
