@@ -1,6 +1,15 @@
 # GridStrument
 
-Maybe this will turn into something, but right now it is just a
-failure showing how laggy android touch events are.
+An experiment in MIDI control via android touch events.
 
-Touch the screen and see how the red line lags behind your finger...
+Uses the nmj library, requires the mnet midi host app. http://www.humatic.de/htools/
+
+Inspired by the LinnStrument http://www.rogerlinndesign.com/linnstrument.html and Madrona Labs SoundPlane http://madronalabs.com/soundplane.
+
+Is it possible for an Android tablet App to give a similar experience?  Let's see.
+
+## Notes
+
+Consider https://github.com/kshoji/USB-MIDI-Driver?  No, that is a Android<->USB MIDI device connector.
+
+Consider http://www.juce.com/ ?

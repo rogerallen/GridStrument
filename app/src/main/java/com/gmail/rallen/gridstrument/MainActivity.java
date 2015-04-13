@@ -12,9 +12,11 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.WindowManager;
 
 public class MainActivity extends ActionBarActivity implements NetworkMidiListener, NMJSystemListener {
 
@@ -35,6 +37,10 @@ public class MainActivity extends ActionBarActivity implements NetworkMidiListen
         // as the ContentView for this Activity.
         mGLView = new GridGLSurfaceView(this);
         setContentView(mGLView);
+
+        DisplayMetrics dm = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(dm);
+        mGLView.setDPI(dm.xdpi,dm.ydpi);
 
         // Initialize Midi System
         AsyncLoadMidiSys(this);
