@@ -16,7 +16,7 @@ import javax.microedition.khronos.opengles.GL10;
 public class GridGLRenderer implements GLSurfaceView.Renderer {
 
     private float[] mVPMatrix = new float[16];
-    private ArrayList<GridLines> mSceneItems = new ArrayList<GridLines>();
+    private ArrayList<GridDrawables> mSceneItems = new ArrayList<GridDrawables>();
 
     @Override
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
@@ -28,7 +28,7 @@ public class GridGLRenderer implements GLSurfaceView.Renderer {
     public void onDrawFrame(GL10 unused) {
         // Redraw background color
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        for (GridLines si : mSceneItems) {
+        for (GridDrawables si : mSceneItems) {
             si.draw(mVPMatrix);
         }
     }
@@ -37,7 +37,7 @@ public class GridGLRenderer implements GLSurfaceView.Renderer {
         mSceneItems.clear();
     }
 
-    public void addItem(GridLines item) {
+    public void addItem(GridDrawables item) {
         mSceneItems.add(item);
     }
 

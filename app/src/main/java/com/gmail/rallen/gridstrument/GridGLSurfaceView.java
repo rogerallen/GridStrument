@@ -1,16 +1,14 @@
 package com.gmail.rallen.gridstrument;
 
-// TODO: pitch wheel starts as if it were never reset.
-// TODO: check mod wheel
+// TODO: how to properly reset pitchbend?
+// TODO: re-enable mod wheel
 // TODO: single event with multiple fingers down does not send multiple notes
 
 import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
-import android.view.WindowManager;
 
 import de.humatic.nmj.NetworkMidiOutput;
 
@@ -20,14 +18,32 @@ import de.humatic.nmj.NetworkMidiOutput;
 public class GridGLSurfaceView extends GLSurfaceView {
     private static final int MAX_NOTES = 16;
     private static final float FINGER_SIZE_INCHES = 0.6f;
-    private float dNx, dNy = 200f;
 
     private final GridGLRenderer mRenderer;
-    private final GridLines gridLines, touchLines, curLines, pressLines;
+    private GridLines gridLines, touchLines, curLines, pressLines;
+    private GridRects[] mLightRects = {
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f),
+            new GridRects(0.5f,0.5f,0.5f,1.0f)
+    };
     private NetworkMidiOutput mMidiOut = null;
 
     private float mXdpi, mYdpi;
 
+    private float mCellWidth, mCellHeight = 200f;
     private float[] mTouchXs = new float[MAX_NOTES];
     private float[] mTouchYs = new float[MAX_NOTES];
     private float[] mCurXs = new float[MAX_NOTES];
@@ -37,6 +53,12 @@ public class GridGLSurfaceView extends GLSurfaceView {
     private float[] mTouchMatrix = new float[16];
     private float[] mCurMatrix = new float[16];
     private float[] mPressMatrix = new float[16];
+    private float[][] mLightMatrices = {
+            new float[16], new float[16], new float[16], new float[16],
+            new float[16], new float[16], new float[16], new float[16],
+            new float[16], new float[16], new float[16], new float[16],
+            new float[16], new float[16], new float[16], new float[16]
+    };
 
     private byte[][] mNoteOns = { // 0x90 Note On
             new byte[]{(byte)0x90, (byte)0x3c, (byte)100},
@@ -147,6 +169,9 @@ public class GridGLSurfaceView extends GLSurfaceView {
         touchLines = new GridLines(0.9f, 0.5f, 0.5f, 1.0f);
         curLines   = new GridLines(0.5f, 0.9f, 0.5f, 1.0f);
         pressLines = new GridLines(0.9f, 0.9f, 0.9f, 1.0f);
+        for(int i = 0; i < 16; i++) {
+            mRenderer.addItem(mLightRects[i]);
+        }
         mRenderer.addItem(gridLines);
         mRenderer.addItem(touchLines);
         mRenderer.addItem(curLines);
@@ -163,32 +188,41 @@ public class GridGLSurfaceView extends GLSurfaceView {
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
 
-        dNx = FINGER_SIZE_INCHES*mXdpi;
-        dNy = FINGER_SIZE_INCHES*mYdpi;
-        int N = (int)Math.ceil((right-left)/dNx)+1;
+        mCellWidth = FINGER_SIZE_INCHES*mXdpi;
+        mCellHeight = FINGER_SIZE_INCHES*mYdpi;
+        int N = (int)Math.ceil((right-left)/ mCellWidth)+1;
         gridLines.reset();
         for(int i = 0; i <= N; i++) {
-            gridLines.add((float)i * dNx, 0.0f, 0.0f,   (float)i * dNx, (float)N*dNy, 0.0f);
-            gridLines.add(0.0f, (float)i * dNy, 0.0f,   (float)N*dNx, (float)i * dNy, 0.0f);
+            gridLines.add((float)i * mCellWidth, 0.0f, 0.0f,   (float)i * mCellWidth, (float)N * mCellHeight, 0.0f);
+            gridLines.add(0.0f, (float)i * mCellHeight, 0.0f,   (float)N * mCellWidth, (float)i * mCellHeight, 0.0f);
         }
 
         touchLines.reset();
-        touchLines.add(-dNx, 0.0f, 0.0f,    dNx, 0.0f, 0.0f);
-        touchLines.add(0.0f, -dNy, 0.0f,   0.0f, dNy, 0.0f);
+        touchLines.add(-mCellWidth, 0.0f, 0.0f, mCellWidth, 0.0f, 0.0f);
+        touchLines.add(0.0f, -mCellHeight, 0.0f, 0.0f, mCellHeight, 0.0f);
 
         curLines.reset();
-        curLines.add(-dNx, 0.0f, 0.0f,    dNx, 0.0f, 0.0f);
-        curLines.add(0.0f, -dNy, 0.0f,   0.0f, dNy, 0.0f);
+        curLines.add(-mCellWidth, 0.0f, 0.0f, mCellWidth, 0.0f, 0.0f);
+        curLines.add(0.0f, -mCellHeight, 0.0f,   0.0f, mCellHeight, 0.0f);
 
         pressLines.reset();
-        pressLines.add(-dNx, 0.0f, 0.0f,    0.0f, 0.0f, 0.0f);
+        pressLines.add(-mCellWidth, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f);
+
+        for(int i = 0; i < 16; i++) {
+            mLightRects[i].reset();
+            mLightRects[i].add(-mCellWidth/2, mCellHeight/2, 0.0f, mCellWidth/2, -mCellHeight/2, 0.0f);
+            Matrix.setIdentityM(mLightMatrices[i], 0);
+            Matrix.translateM(mLightMatrices[i], 0, -mCellWidth/2, -mCellHeight/2, 0.0f); // offscreen
+            mLightRects[i].setModelMatrix(mLightMatrices[i]);
+        }
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
         final int pointerCount = ev.getPointerCount();
         //final long eventTime = ev.getEventTime();
-        for (int p = 0; p < pointerCount; p++) {
+
+         for (int p = 0; p < pointerCount; p++) {
             final int pointerId = ev.getPointerId(p);
             mCurXs[pointerId] = ev.getX(p);
             mCurYs[pointerId] = this.getHeight() - ev.getY(p); // Y-invert for OpenGL
@@ -200,9 +234,13 @@ public class GridGLSurfaceView extends GLSurfaceView {
         curLines.setModelMatrix(mCurMatrix);
 
         Matrix.setIdentityM(mPressMatrix, 0);
-        Matrix.translateM(mPressMatrix, 0, mCurPressures[0]*dNx, dNy/2, 0.0f);
+        Matrix.translateM(mPressMatrix, 0, mCurPressures[0]* mCellWidth, mCellHeight /2, 0.0f);
         pressLines.setModelMatrix(mPressMatrix);
 
+        final int historySize = ev.getHistorySize();
+        if(historySize > 0) {
+            Log.e("samp","UNEXPECTED HISTORY!");
+        }
         //debugSamples(ev);
         switch (ev.getActionMasked()) {
             // ignoring ACTION_HOVER_*, ACTION_SCROLL
@@ -231,7 +269,7 @@ public class GridGLSurfaceView extends GLSurfaceView {
                     float dx = mCurXs[pointerId] - mTouchXs[pointerId];
                     float dy = mCurYs[pointerId] - mTouchYs[pointerId];
                     sendPitchBend(pointerId,dx);
-                    sendModWheel(pointerId,dy);
+                    //sendModWheel(pointerId,dy);
                 }
                 break;
             case MotionEvent.ACTION_OUTSIDE:
@@ -245,6 +283,14 @@ public class GridGLSurfaceView extends GLSurfaceView {
         //Log.d("eventDown","down:"+pointerId);
         mTouchXs[pointerId] = mCurXs[pointerId];
         mTouchYs[pointerId] = mCurYs[pointerId];
+
+        // light rect
+        float x = (float)Math.floor(mTouchXs[pointerId]/mCellWidth)*mCellWidth + mCellWidth/2;
+        float y = (float)Math.floor(mTouchYs[pointerId]/mCellHeight)*mCellHeight + mCellHeight/2;
+        Matrix.setIdentityM(mLightMatrices[pointerId],0);
+        Matrix.translateM(mLightMatrices[pointerId], 0, x, y, 0.0f);
+        mLightRects[pointerId].setModelMatrix(mLightMatrices[pointerId]);
+
         if(pointerId == 0) {
             Matrix.setIdentityM(mTouchMatrix, 0);
             Matrix.translateM(mTouchMatrix, 0, mTouchXs[pointerId], mTouchYs[pointerId], 0.0f);
@@ -258,15 +304,82 @@ public class GridGLSurfaceView extends GLSurfaceView {
 
     void eventUp(int pointerId) {
         //Log.d("eventUp","up:"+pointerId);
+
+        // light rect offscreen
+        Matrix.setIdentityM(mLightMatrices[pointerId],0);
+        Matrix.translateM(mLightMatrices[pointerId], 0, -mCellWidth/2, -mCellHeight/2, 0.0f);
+        mLightRects[pointerId].setModelMatrix(mLightMatrices[pointerId]);
+
         mCurPressures[pointerId] = 0.0f;
         if(pointerId == 0) {
             Matrix.setIdentityM(mPressMatrix, 0);
-            Matrix.translateM(mPressMatrix, 0, mCurPressures[pointerId] * dNx, dNy / 2, 0.0f);
+            Matrix.translateM(mPressMatrix, 0, mCurPressures[pointerId] * mCellWidth, mCellHeight / 2, 0.0f);
             pressLines.setModelMatrix(mPressMatrix);
         }
         sendPitchBend(pointerId,0);
         //sendModWheel(pointerId,0);
         sendNoteOff(pointerId);
+    }
+
+    private void updateNote(int channel) {
+        byte curNote = (byte)(48.0 + Math.floor(mTouchXs[channel]/ mCellWidth) + 5*Math.floor(mTouchYs[channel]/ mCellHeight));
+        mNoteOns[channel][1] = curNote;
+        mNoteOffs[channel][1] = curNote;
+    }
+
+    private void sendMidi(byte[] m) {
+        try{
+            mMidiOut.sendMidiOnThread(m);
+        } catch (Exception ex){
+            ex.printStackTrace();
+        }
+    }
+
+    private void sendNoteOn(int channel) {
+        //Log.d("sendNoteOn",String.format("ch=%d", channel));
+        if(mActiveNotes[channel]) {
+            Log.e("sendNoteOn",String.format("MISSED NOTE OFF on Channel %d", channel));
+        }
+        mActiveNotes[channel] = true;
+        sendMidi(mNoteOns[channel]);
+    }
+
+    private void sendNoteOff(int channel) {
+        //Log.d("sendNoteOff",String.format("ch=%d", channel));
+        if(!(mActiveNotes[channel])) {
+            Log.e("sendNoteOff",String.format("MISSED NOTE ON on Channel %d", channel));
+        }
+        mActiveNotes[channel] = false;
+        sendMidi(mNoteOffs[channel]);
+    }
+
+    private void sendPitchBend(int channel, float delta) {
+        //Log.d("sendPitchBend",String.format("ch=%d, dlt=%f", channel, delta));
+        delta = 0x2000 + 0x2000*(delta/ mCellWidth); // normalize
+        delta = (delta > 0x3fff) ? 0x3ffff : ((delta < 0) ? 0 : delta);
+        int d = (int)delta;
+        boolean changed = !((mPitchBends[channel][1] == (byte)(d & 0x7f)) &&
+                            (mPitchBends[channel][2] == (byte)((d>>7) & 0x7f)));
+        if(changed) {
+            mPitchBends[channel][1] = (byte)(d & 0x7f);
+            mPitchBends[channel][2] = (byte)((d>>7) & 0x7f);
+            sendMidi(mPitchBends[channel]);
+        }
+    }
+
+    private void sendModWheel(int channel, float delta) {
+        delta = 0x7f*(delta/ mCellHeight); // normalize
+        delta = (delta > 0x7f) ? 0x7f : ((delta < 0) ? 0 : delta);
+        int d = (int)delta;
+        boolean changed = !(mContinuousControllers[channel][2] == (byte)(d & 0x7f));
+        if(changed) {
+            mContinuousControllers[channel][2] = (byte)(d & 0x7f);
+            sendMidi(mContinuousControllers[channel]);
+        }
+    }
+
+    public void setMidiOutput(NetworkMidiOutput midiOut) {
+         mMidiOut = midiOut;
     }
 
     // for debug
@@ -343,69 +456,6 @@ public class GridGLSurfaceView extends GLSurfaceView {
             Log.d("samp",String.format("%08d: ptr (%d) %d (%.1f,%.1f)",eventTime, p,
                     pointerId, pointerX, pointerY));
         }
-    }
-
-    private void updateNote(int channel) {
-        byte curNote = (byte)(48.0 + Math.floor(mTouchXs[channel]/dNx) + 5*Math.floor(mTouchYs[channel]/dNy));
-        mNoteOns[channel][1] = curNote;
-        mNoteOffs[channel][1] = curNote;
-    }
-
-    private void sendMidi(byte[] m) {
-        try{
-            mMidiOut.sendMidiOnThread(m);
-        } catch (Exception ex){
-            ex.printStackTrace();
-        }
-    }
-
-    private void sendNoteOn(int channel) {
-        //Log.d("sendNoteOn",String.format("ch=%d", channel));
-        if(mActiveNotes[channel]) {
-            Log.e("sendNoteOn",String.format("MISSED NOTE OFF on Channel %d", channel));
-        }
-        mActiveNotes[channel] = true;
-        sendMidi(mNoteOns[channel]);
-    }
-
-    private void sendNoteOff(int channel) {
-        //Log.d("sendNoteOff",String.format("ch=%d", channel));
-        if(!(mActiveNotes[channel])) {
-            Log.e("sendNoteOff",String.format("MISSED NOTE ON on Channel %d", channel));
-        }
-        mActiveNotes[channel] = false;
-        sendMidi(mNoteOffs[channel]);
-    }
-
-    private void sendPitchBend(int channel, float delta) {
-        //Log.d("sendPitchBend",String.format("ch=%d, dlt=%f", channel, delta));
-        // FIXME multiple notes will need to go on multiple channels
-        // FIXME pitchBend is not working perfectly...
-        delta = 0x2000 + 0x2000*(delta/dNx); // normalize
-        delta = (delta > 0x3fff) ? 0x3ffff : ((delta < 0) ? 0 : delta);
-        int d = (int)delta;
-        boolean changed = !((mPitchBends[channel][1] == (byte)(d & 0x7f)) &&
-                            (mPitchBends[channel][2] == (byte)((d>>7) & 0x7f)));
-        if(changed) {
-            mPitchBends[channel][1] = (byte)(d & 0x7f);
-            mPitchBends[channel][2] = (byte)((d>>7) & 0x7f);
-            sendMidi(mPitchBends[channel]);
-        }
-    }
-
-    private void sendModWheel(int channel, float delta) {
-        delta = 0x7f*(delta/dNy); // normalize
-        delta = (delta > 0x7f) ? 0x7f : ((delta < 0) ? 0 : delta);
-        int d = (int)delta;
-        boolean changed = !(mContinuousControllers[channel][2] == (byte)(d & 0x7f));
-        if(changed) {
-            mContinuousControllers[channel][2] = (byte)(d & 0x7f);
-            sendMidi(mContinuousControllers[channel]);
-        }
-    }
-
-    public void setMidiOutput(NetworkMidiOutput midiOut) {
-         mMidiOut = midiOut;
     }
 
 }
