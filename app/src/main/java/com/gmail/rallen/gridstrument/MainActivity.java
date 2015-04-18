@@ -16,7 +16,6 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.WindowManager;
 
 public class MainActivity extends ActionBarActivity implements NetworkMidiListener, NMJSystemListener {
 

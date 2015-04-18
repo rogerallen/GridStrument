@@ -16,7 +16,7 @@ import javax.microedition.khronos.opengles.GL10;
 public class GridGLRenderer implements GLSurfaceView.Renderer {
 
     private float[] mVPMatrix = new float[16];
-    private ArrayList<GridDrawables> mSceneItems = new ArrayList<GridDrawables>();
+    private ArrayList<GridDrawables> mSceneItems = new ArrayList<>();
 
     @Override
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {

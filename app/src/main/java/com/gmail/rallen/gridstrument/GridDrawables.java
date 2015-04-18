@@ -35,7 +35,7 @@ public class GridDrawables {
     static final int BYTES_PER_FLOAT = 4;
     static final int BYTES_PER_SHORT = 2;
     static final int VERTEX_STRIDE = COORDS_PER_VERTEX * BYTES_PER_FLOAT;
-    protected ArrayList<Float> mCoords = new ArrayList<Float>();
+    protected ArrayList<Float> mCoords = new ArrayList<>();
 
     protected float mColor[] = new float[4]; // initialize this in constructor.
     protected float mMMatrix[] = new float[16]; // initialize this in constructor.
@@ -78,7 +78,6 @@ public class GridDrawables {
         mVertexBuffer.position(0);
 
         // initialize byte buffer for the draw list
-        ShortBuffer drawListBuffer;
         mIndexBufferSize = (int)Math.floor(mCoords.size()/COORDS_PER_VERTEX);
         short drawOrder[] = new short[mIndexBufferSize];
         for(short i = 0; i < mIndexBufferSize; i++) {

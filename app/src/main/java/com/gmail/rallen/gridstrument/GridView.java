@@ -6,6 +6,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.PathShape;
+import android.support.annotation.NonNull;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -92,21 +93,18 @@ public class GridView extends View {
     }
 
     @Override
-    public boolean onTouchEvent(MotionEvent ev) {
-        float x = ev.getX();
-        float y = ev.getY();
-        curX = x;
-        curY = y;
-        float p = ev.getPressure();
-        curPressure = p;
-        final int nHistory = ev.getHistorySize();
-        final int nPointers = ev.getPointerCount();
+    public boolean onTouchEvent(@NonNull MotionEvent ev) {
+        curX = ev.getX();
+        curY = ev.getY();
+        curPressure = ev.getPressure();
+        //final int nHistory = ev.getHistorySize();
+        //final int nPointers = ev.getPointerCount();
 
         switch (ev.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 //Log.d("onTouch", String.format("down x: %.2f y: %.2f p: %.2f nHist: %d, nPtr: %d", x, y, p, nHistory, nPointers));
-                touchX = x;
-                touchY = y;
+                touchX = curX;
+                touchY = curY;
                 this.invalidate();
                 break;
             case MotionEvent.ACTION_MOVE:
