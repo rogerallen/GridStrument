@@ -70,28 +70,10 @@ public class GridGLSurfaceView extends GLSurfaceView {
             new float[16], new float[16], new float[16], new float[16]
     };
 
-    private byte[][] mNoteOns = { // 0x90 Note On
-            new byte[]{(byte) 0x90, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x91, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x92, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x93, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x94, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x95, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x96, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x97, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x98, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x99, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x9a, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x9b, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x9c, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x9d, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x9e, (byte) 0x3c, (byte) 100},
-            new byte[]{(byte) 0x9f, (byte) 0x3c, (byte) 100}
-    };
     // Aha!  Sending multiple midiOut packets back-to-back results in dropped packets.
     // So, packing multiple packets into one array will be necessary.
-    // Note off will also reset the pitch-bend & mod wheel.
-    private byte[][] mNoteOffs = { // 0x80 Note Off (0x90 + velocity=0 also works)
+    // Note on will reset the pitch-bend & mod wheel.
+    private byte[][] mNoteOns = { // 0x80 Note Off (0x90 + velocity=0 also works)
             new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe0, (byte) 0x00, (byte) 0x40, (byte) 0x90, (byte) 0x3c, (byte) 0},
             new byte[]{(byte) 0xb1, (byte) 0x01, (byte) 0x00, (byte) 0xe1, (byte) 0x00, (byte) 0x40, (byte) 0x91, (byte) 0x3c, (byte) 0},
             new byte[]{(byte) 0xb2, (byte) 0x01, (byte) 0x00, (byte) 0xe2, (byte) 0x00, (byte) 0x40, (byte) 0x92, (byte) 0x3c, (byte) 0},
@@ -109,26 +91,44 @@ public class GridGLSurfaceView extends GLSurfaceView {
             new byte[]{(byte) 0xbe, (byte) 0x01, (byte) 0x00, (byte) 0xee, (byte) 0x00, (byte) 0x40, (byte) 0x9e, (byte) 0x3c, (byte) 0},
             new byte[]{(byte) 0xbf, (byte) 0x01, (byte) 0x00, (byte) 0xef, (byte) 0x00, (byte) 0x40, (byte) 0x9f, (byte) 0x3c, (byte) 0}
     };
+    private byte[][] mNoteOffs = { // 0x90 Note On
+            new byte[]{(byte) 0x90, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x91, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x92, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x93, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x94, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x95, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x96, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x97, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x98, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x99, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x9a, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x9b, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x9c, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x9d, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x9e, (byte) 0x3c, (byte) 0},
+            new byte[]{(byte) 0x9f, (byte) 0x3c, (byte) 0}
+    };
     // 0xE0 Pitch bend
     // [1] = 1 // mod wheel (coarse), 33 mod wheel (fine)
     // [1] = 2 // breath control (coarse), 34 bc (fine)
     private byte[][] mModulates = {
             new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe0, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe1, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe2, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe3, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe4, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe5, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe6, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe7, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe8, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe9, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xea, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xeb, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xec, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xed, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xee, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xef, (byte) 0x00, (byte) 0x40}
+            new byte[]{(byte) 0xb1, (byte) 0x01, (byte) 0x00, (byte) 0xe1, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xb2, (byte) 0x01, (byte) 0x00, (byte) 0xe2, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xb3, (byte) 0x01, (byte) 0x00, (byte) 0xe3, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xb4, (byte) 0x01, (byte) 0x00, (byte) 0xe4, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xb5, (byte) 0x01, (byte) 0x00, (byte) 0xe5, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xb6, (byte) 0x01, (byte) 0x00, (byte) 0xe6, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xb7, (byte) 0x01, (byte) 0x00, (byte) 0xe7, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xb8, (byte) 0x01, (byte) 0x00, (byte) 0xe8, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xb9, (byte) 0x01, (byte) 0x00, (byte) 0xe9, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xba, (byte) 0x01, (byte) 0x00, (byte) 0xea, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xbb, (byte) 0x01, (byte) 0x00, (byte) 0xeb, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xbc, (byte) 0x01, (byte) 0x00, (byte) 0xec, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xbd, (byte) 0x01, (byte) 0x00, (byte) 0xed, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xbe, (byte) 0x01, (byte) 0x00, (byte) 0xee, (byte) 0x00, (byte) 0x40},
+            new byte[]{(byte) 0xbf, (byte) 0x01, (byte) 0x00, (byte) 0xef, (byte) 0x00, (byte) 0x40}
     };
     // Other potential controls
     // 0xA0     Aftertouch + 1 byte for note + 1 byte for value
@@ -323,13 +323,13 @@ public class GridGLSurfaceView extends GLSurfaceView {
                                                    Math.floor(mTouchXs[channel]/ mCellWidth) +
                                                    mStride*Math.floor(mTouchYs[channel]/ mCellHeight)));
         byte curPressure = (byte)clamp(0f,127f,(float)Math.floor(mCurPressures[channel]*127 + 0.5f));
-        mNoteOns[channel][1] = curNote;
-        mNoteOns[channel][2] = curPressure;
-        mNoteOffs[channel][6+1] = curNote;
+        mNoteOns[channel][2*3+1] = curNote;
+        mNoteOns[channel][2*3+2] = curPressure;
+        mNoteOffs[channel][1] = curNote;
     }
 
     private void sendNoteOn(int channel) {
-        //Log.d("sendNoteOn",String.format("ch=%d", channel));
+        Log.d("sendNoteOn",String.format("ch=%d", channel));
         if(mActiveNotes[channel]) {
             Log.e("sendNoteOn",String.format("MISSED NOTE OFF on Channel %d", channel));
         }
@@ -338,7 +338,7 @@ public class GridGLSurfaceView extends GLSurfaceView {
     }
 
     private void sendNoteOff(int channel) {
-        //Log.d("sendNoteOff",String.format("ch=%d", channel));
+        Log.d("sendNoteOff",String.format("ch=%d", channel));
         if(!(mActiveNotes[channel])) {
             Log.e("sendNoteOff",String.format("MISSED NOTE ON on Channel %d", channel));
         }
@@ -347,6 +347,9 @@ public class GridGLSurfaceView extends GLSurfaceView {
     }
 
     private void sendModulate(int channel, float deltax, float deltay) {
+        if(!(mActiveNotes[channel])) {
+            Log.e("sendModulate",String.format("MISSING NOTE ON on Channel %d", channel));
+        }
         // normalize, clamp & pack into bytes each delta modulation
         float pitchDelta = 0x2000 + 0x2000*(deltax/(mRange*mCellWidth));
         pitchDelta = (pitchDelta > 0x3fff) ? 0x3ffff : ((pitchDelta < 0) ? 0 : pitchDelta);
