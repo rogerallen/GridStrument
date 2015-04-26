@@ -16,18 +16,20 @@ only 1 note-on message appears on the client.  Appears related to the
 timing of the noteOn events on the server.  If they are within 0.001s,
 it gets dropped. Example:
 
-   **SERVER**
-   04-26 10:24:27.163  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOn﹕ ch=0
-   04-26 10:24:27.164  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOn﹕ ch=1
-   04-26 10:24:27.240  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOff﹕ ch=1
-   04-26 10:24:27.267  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOff﹕ ch=0
+```text
+**SERVER**
+04-26 10:24:27.163  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOn﹕ ch=0
+04-26 10:24:27.164  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOn﹕ ch=1
+04-26 10:24:27.240  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOff﹕ ch=1
+04-26 10:24:27.267  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOff﹕ ch=0
 
-   **CLIENT**
-   359922598751 note-on 0 69 0.496063
-     <missing note-on 1 67>
-   359922679854 note-off 1 67
-   ERROR: channel  1  not playing note  67
-   359922692396 note-off 0 69
+**CLIENT**
+359922598751 note-on 0 69 0.496063
+  <missing note-on 1 67>
+359922679854 note-off 1 67
+ERROR: channel  1  not playing note  67
+359922692396 note-off 0 69
+```
 
 So, it appears that I need a more reliable midi library in order to
 make this experiment useful.
