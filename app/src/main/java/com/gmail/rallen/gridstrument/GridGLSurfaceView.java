@@ -1,15 +1,17 @@
 package com.gmail.rallen.gridstrument;
 
-// TODO: single event with multiple fingers down may not send multiple notes ???
-
 import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
+import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.MotionEvent;
 
-import de.humatic.nmj.NetworkMidiOutput;
+import com.illposed.osc.OSCMessage;
+import com.illposed.osc.OSCPortOut;
+
+import java.util.Arrays;
 
 /**
  * GridGLSurfaceView
@@ -49,7 +51,8 @@ public class GridGLSurfaceView extends GLSurfaceView {
             new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
             new GridRects(0.5f, 0.5f, 0.5f, 1.0f)
     };
-    private NetworkMidiOutput mMidiOut = null;
+    //private NetworkMidiOutput mMidiOut = null;
+    private OSCPortOut mOSCPortOut;
 
     private float mXdpi, mYdpi;
 
@@ -69,6 +72,8 @@ public class GridGLSurfaceView extends GLSurfaceView {
             new float[16], new float[16], new float[16], new float[16],
             new float[16], new float[16], new float[16], new float[16]
     };
+
+    // FIXME -- all this midi state handling is out-of-date
 
     // Aha!  Sending multiple midiOut packets back-to-back results in dropped packets.
     // So, packing multiple packets into one array will be necessary.
@@ -164,8 +169,11 @@ public class GridGLSurfaceView extends GLSurfaceView {
         mYdpi = ydpi;
     }
 
-    public void setMidiOutput(NetworkMidiOutput midiOut) {
-        mMidiOut = midiOut;
+    //public void setMidiOutput(NetworkMidiOutput midiOut) {
+    //    mMidiOut = midiOut;
+    //}
+    public void setOSCPortOut(OSCPortOut aOSCPortOut) {
+        mOSCPortOut = aOSCPortOut;
     }
 
     @Override
@@ -290,6 +298,7 @@ public class GridGLSurfaceView extends GLSurfaceView {
             touchLines.setModelMatrix(mTouchMatrix);
         }
         updateNote(pointerId);
+        sendModulate(pointerId, 0.0f, 0.0f);
         sendNoteOn(pointerId);
     }
 
@@ -310,14 +319,6 @@ public class GridGLSurfaceView extends GLSurfaceView {
         sendNoteOff(pointerId);
     }
 
-    private void sendMidi(byte[] m) {
-        try{
-            mMidiOut.sendMidiOnThread(m);
-        } catch (Exception ex){
-            ex.printStackTrace();
-        }
-    }
-
     private void updateNote(int channel) {
         byte curNote = (byte)clamp(0f,127f,(float)(mBaseNote +
                                                    Math.floor(mTouchXs[channel]/ mCellWidth) +
@@ -334,7 +335,8 @@ public class GridGLSurfaceView extends GLSurfaceView {
             Log.e("sendNoteOn",String.format("MISSED NOTE OFF on Channel %d", channel));
         }
         mActiveNotes[channel] = true;
-        sendMidi(mNoteOns[channel]);
+        //sendMidi(mNoteOns[channel]);
+        new OSCSendMessageTask(String.format("/%d/noteOn/%d",channel,mNoteOns[channel][2*3+1])).execute((int) mNoteOns[channel][2 * 3 + 2]);
     }
 
     private void sendNoteOff(int channel) {
@@ -343,12 +345,15 @@ public class GridGLSurfaceView extends GLSurfaceView {
             Log.e("sendNoteOff",String.format("MISSED NOTE ON on Channel %d", channel));
         }
         mActiveNotes[channel] = false;
-        sendMidi(mNoteOffs[channel]);
+        //sendMidi(mNoteOffs[channel]);
+        new OSCSendMessageTask(String.format("/%d/noteOff/%d",channel,mNoteOffs[channel][1])).execute((int)mNoteOffs[channel][2]);
     }
 
     private void sendModulate(int channel, float deltax, float deltay) {
         if(!(mActiveNotes[channel])) {
-            Log.e("sendModulate",String.format("MISSING NOTE ON on Channel %d", channel));
+            if(deltax + deltay != 0) {
+                Log.e("sendModulate", String.format("MISSING NOTE ON on Channel %d", channel));
+            }
         }
         // normalize, clamp & pack into bytes each delta modulation
         float pitchDelta = 0x2000 + 0x2000*(deltax/(mRange*mCellWidth));
@@ -360,15 +365,21 @@ public class GridGLSurfaceView extends GLSurfaceView {
         modDelta = (modDelta > 0x7f) ? 0x7f : ((modDelta < 0) ? 0 : modDelta);
         byte modByte = (byte)(((int)modDelta) & 0x7f);
 
-        boolean changed = !((mModulates[channel][3+1] == pitchLowByte) &&
-                            (mModulates[channel][3+2] == pitchHighByte) &&
-                            (mModulates[channel][2] == modByte));
-        if(changed) {
+        boolean changedPitch = !((mModulates[channel][3+1] == pitchLowByte) &&
+                            (mModulates[channel][3+2] == pitchHighByte));
+
+        boolean changedMod = (mModulates[channel][2] != modByte);
+        if(changedPitch) {
             //Log.d("sendModulate",String.format("ch=%d, dlt=%f %02x%02x", channel, delta, ((d>>7) & 0x7f), (d & 0x7f)));
-            mModulates[channel][3+1] = pitchLowByte;
-            mModulates[channel][3+2] = pitchHighByte;
+            mModulates[channel][3 + 1] = pitchLowByte;
+            mModulates[channel][3 + 2] = pitchHighByte;
+            new OSCSendMessageTask(String.format("/%d/pitchBend",channel)).execute((int)mModulates[channel][3+2],(int)mModulates[channel][3+1]);
+        }
+        if(changedMod) {
             mModulates[channel][2] = modByte;
-            sendMidi(mModulates[channel]);
+            //sendMidi(mModulates[channel]);
+            new OSCSendMessageTask(String.format("/%d/control/%d",channel,(int)mModulates[channel][1])).execute((int)mModulates[channel][2]);
+
         }
     }
 
@@ -445,6 +456,23 @@ public class GridGLSurfaceView extends GLSurfaceView {
             final float pointerY = ev.getY(p);
             Log.d("samp",String.format("%08d: ptr (%d) %d (%.1f,%.1f)",eventTime, p,
                     pointerId, pointerX, pointerY));
+        }
+    }
+
+    private class OSCSendMessageTask extends AsyncTask<Object, Void, Boolean> {
+        private String mAddress;
+        OSCSendMessageTask(String address) {
+            mAddress = address;
+        }
+        protected Boolean doInBackground(Object... objs) {
+            //Log.d("dib","len="+objs.length+" "+objs);
+            try {
+                OSCMessage message = new OSCMessage(mAddress, Arrays.asList(objs));
+                mOSCPortOut.send(message);
+            } catch (Exception e) {
+                Log.e("OSCSendMessageTask","Unknown exception "+e);
+            }
+            return true;
         }
     }
 

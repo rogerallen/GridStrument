@@ -39,3 +39,10 @@ make this experiment useful.
 Consider https://github.com/kshoji/USB-MIDI-Driver?  No, that is a Android<->USB MIDI device connector.
 
 Consider http://www.juce.com/ ?
+
+Okay, switching to OSC...
+
+This looks useful.  http://physcomp.org/tutorial-android-osc-communication/
+and https://github.com/Gkxd/OSCTutorial/blob/master/app/src/main/java/com/dhua/osctutorial/MainActivity.java
+
+Which uses http://www.illposed.com/software/javaosc.html
