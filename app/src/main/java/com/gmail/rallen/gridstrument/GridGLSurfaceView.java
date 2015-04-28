@@ -330,23 +330,23 @@ public class GridGLSurfaceView extends GLSurfaceView {
     }
 
     private void sendNoteOn(int channel) {
-        Log.d("sendNoteOn",String.format("ch=%d", channel));
+        //Log.d("sendNoteOn",String.format("ch=%d", channel));
         if(mActiveNotes[channel]) {
             Log.e("sendNoteOn",String.format("MISSED NOTE OFF on Channel %d", channel));
         }
         mActiveNotes[channel] = true;
         //sendMidi(mNoteOns[channel]);
-        new OSCSendMessageTask(String.format("/%d/noteOn/%d",channel,mNoteOns[channel][2*3+1])).execute((int) mNoteOns[channel][2 * 3 + 2]);
+        new OSCSendMessageTask(String.format("/vkb_midi/%d/note/%d",channel,mNoteOns[channel][2*3+1])).execute((int) mNoteOns[channel][2 * 3 + 2]);
     }
 
     private void sendNoteOff(int channel) {
-        Log.d("sendNoteOff",String.format("ch=%d", channel));
+        //Log.d("sendNoteOff",String.format("ch=%d", channel));
         if(!(mActiveNotes[channel])) {
             Log.e("sendNoteOff",String.format("MISSED NOTE ON on Channel %d", channel));
         }
         mActiveNotes[channel] = false;
         //sendMidi(mNoteOffs[channel]);
-        new OSCSendMessageTask(String.format("/%d/noteOff/%d",channel,mNoteOffs[channel][1])).execute((int)mNoteOffs[channel][2]);
+        new OSCSendMessageTask(String.format("/vkb_midi/%d/note/%d",channel,mNoteOffs[channel][1])).execute((int)mNoteOffs[channel][2]);
     }
 
     private void sendModulate(int channel, float deltax, float deltay) {
@@ -373,12 +373,12 @@ public class GridGLSurfaceView extends GLSurfaceView {
             //Log.d("sendModulate",String.format("ch=%d, dlt=%f %02x%02x", channel, delta, ((d>>7) & 0x7f), (d & 0x7f)));
             mModulates[channel][3 + 1] = pitchLowByte;
             mModulates[channel][3 + 2] = pitchHighByte;
-            new OSCSendMessageTask(String.format("/%d/pitchBend",channel)).execute((int)mModulates[channel][3+2],(int)mModulates[channel][3+1]);
+            new OSCSendMessageTask(String.format("/vkb_midi/%d/pitch",channel)).execute((int)pitchDelta);
         }
         if(changedMod) {
             mModulates[channel][2] = modByte;
             //sendMidi(mModulates[channel]);
-            new OSCSendMessageTask(String.format("/%d/control/%d",channel,(int)mModulates[channel][1])).execute((int)mModulates[channel][2]);
+            new OSCSendMessageTask(String.format("/vkb_midi/%d/cc/%d",channel,(int)mModulates[channel][1])).execute((int)mModulates[channel][2]);
 
         }
     }
