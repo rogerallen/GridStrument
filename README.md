@@ -1,48 +1,35 @@
 # GridStrument
 
-An experiment in MIDI control via android touch events.
-
-Uses the nmj library, requires the mnet midi host app. http://www.humatic.de/htools/
+An experiment in OSC control via android touch events.
 
 Inspired by the LinnStrument http://www.rogerlinndesign.com/linnstrument.html and Madrona Labs SoundPlane http://madronalabs.com/soundplane.
 
 Is it possible for an Android tablet App to give a similar experience?  Let's see.
 
-## Status as of 4/26/2015
+## Status as of 4/28/2015
 
-Errors appear to come from missing note-on events.  If you quickly tap
-2 fingers, I see events on the server for the sendNoteOn calls but
-only 1 note-on message appears on the client.  Appears related to the
-timing of the noteOn events on the server.  If they are within 0.001s,
-it gets dropped. Example:
+Basically works with Reaper if you have this ReaperOSC config
 
 ```text
-**SERVER**
-04-26 10:24:27.163  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOn﹕ ch=0
-04-26 10:24:27.164  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOn﹕ ch=1
-04-26 10:24:27.240  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOff﹕ ch=1
-04-26 10:24:27.267  30112-30112/com.gmail.rallen.gridstrument D/sendNoteOff﹕ ch=0
-
-**CLIENT**
-359922598751 note-on 0 69 0.496063
-  <missing note-on 1 67>
-359922679854 note-off 1 67
-ERROR: channel  1  not playing note  67
-359922692396 note-off 0 69
+VKB_MIDI_NOTE i/vkb_midi/@/note/@
+VKB_MIDI_CC i/vkb_midi/@/cc/@
+VKB_MIDI_PITCH i/vkb_midi/@/pitch
 ```
 
-So, it appears that I need a more reliable midi library in order to
-make this experiment useful.
+and you edit the mOSCServerIP in the code to match your host.
 
 ## Notes
 
-Consider https://github.com/kshoji/USB-MIDI-Driver?  No, that is a Android<->USB MIDI device connector.
+Originally written with Humatic nmj, mnet MIDI tools.  But, I found
+them unreliable for this purpose.
+
+Consider https://github.com/kshoji/USB-MIDI-Driver?  No, that is a
+Android<->USB MIDI device connector.
 
 Consider http://www.juce.com/ ?
 
-Okay, switching to OSC...
+Switching to OSC.  This looks useful.
+http://physcomp.org/tutorial-android-osc-communication/ and
+https://github.com/Gkxd/OSCTutorial/blob/master/app/src/main/java/com/dhua/osctutorial/MainActivity.java
 
-This looks useful.  http://physcomp.org/tutorial-android-osc-communication/
-and https://github.com/Gkxd/OSCTutorial/blob/master/app/src/main/java/com/dhua/osctutorial/MainActivity.java
-
-Which uses http://www.illposed.com/software/javaosc.html
+Now uses http://www.illposed.com/software/javaosc.html
