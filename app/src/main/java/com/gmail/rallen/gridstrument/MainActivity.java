@@ -72,6 +72,9 @@ public class MainActivity extends ActionBarActivity {
                 }
             }
             return true;
+        } else if (id == R.id.action_settings) {
+
+
         }
         return super.onOptionsItemSelected(item);
     }
