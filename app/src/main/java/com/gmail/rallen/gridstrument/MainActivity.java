@@ -1,6 +1,9 @@
 package com.gmail.rallen.gridstrument;
 
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
@@ -17,12 +20,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class MainActivity extends ActionBarActivity {
+    private final static int PREF_REQ_CODE = 99;
 
     private GridGLSurfaceView mGLView;
 
-    private String     mOSCServerIP   = "10.10.0.19"; // FIXME GUI Config
-    private int        mOSCServerPort = 8675;         // FIXME GUI Config
-    private OSCPortOut mOSCPortOut;
+    private String     mOSCServerIP   = "";
+    private int        mOSCServerPort = 0;
+    private OSCPortOut mOSCPortOut    = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,17 +44,49 @@ public class MainActivity extends ActionBarActivity {
         getWindowManager().getDefaultDisplay().getMetrics(dm);
         mGLView.setDPI(dm.xdpi,dm.ydpi);
 
+        SetupOSC();
+
+    }
+
+    private void SetupOSC() {
+        boolean needsUpdate = false;
+
+        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        String prefServerIP = SP.getString("server_ip", getString(R.string.default_host_ip));
+        String prefServerPort = SP.getString("server_port", getString(R.string.default_host_port));
+        int prefServerPortNum;
         try {
-            // Connect to some IP address and port
-            mOSCPortOut = new OSCPortOut(InetAddress.getByName(mOSCServerIP), mOSCServerPort);
-        } catch(UnknownHostException e) {
-            // Error handling when your IP isn't found
-            Log.e("OSCPortOut","Cannot find OSCServerIP "+mOSCServerIP+":"+mOSCServerPort+" "+e);
-        } catch(Exception e) {
-            // Error handling for any other errors
-            Log.e("OSCPortOut","Unknown exception "+e);
+            prefServerPortNum = Integer.parseInt(prefServerPort);
+        } catch(NumberFormatException ex) {
+            Log.e("SetupOSC","bad port value.  Using default port.");
+            prefServerPortNum = Integer.parseInt(getString(R.string.default_host_port));
         }
-        mGLView.setOSCPortOut(mOSCPortOut);
+        Log.i("preferences", "server_ip=" + prefServerIP);
+        Log.i("preferences", "server_host=" + prefServerPortNum);
+        if(mOSCServerIP != prefServerIP) {
+            needsUpdate = true;
+            mOSCServerIP = prefServerIP;
+        }
+        if(mOSCServerPort != prefServerPortNum) {
+            needsUpdate = true;
+            mOSCServerPort = prefServerPortNum;
+        }
+
+        if(needsUpdate) {
+            try {
+                // Connect to some IP address and port
+                mOSCPortOut = new OSCPortOut(InetAddress.getByName(mOSCServerIP), mOSCServerPort);
+            } catch (UnknownHostException e) {
+                // Error handling when your IP isn't found
+                Log.e("OSCPortOut", "Cannot find OSCServerIP " + mOSCServerIP + ":" + mOSCServerPort + " " + e);
+                mOSCPortOut = null;
+            } catch (Exception e) {
+                // Error handling for any other errors
+                Log.e("OSCPortOut", "Unknown exception " + e);
+                mOSCPortOut = null;
+            }
+            mGLView.setOSCPortOut(mOSCPortOut);  // TODO test mOSCPortOut == null;
+        }
 
     }
 
@@ -63,20 +99,32 @@ public class MainActivity extends ActionBarActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_notes_off) {
-            Log.d("select","NOTES OFF!");
+        switch(item.getItemId()) {
+        case R.id.action_notes_off:
+            Log.d("select", "NOTES OFF!");
             if (mOSCPortOut != null) {
-                for(int c = 0; c < 16; c++) {
+                for (int c = 0; c < 16; c++) {
                     new OSCSendMessageTask("/allNotesOff").execute(c);
                 }
             }
             return true;
-        } else if (id == R.id.action_settings) {
-
-
+        case R.id.action_settings:
+            Log.d("select", "preferences...");
+            Intent i = new Intent(this, MainPreferenceActivity.class);
+            startActivityForResult(i,PREF_REQ_CODE);
+            return true;
+        default:
+            return super.onOptionsItemSelected(item);
         }
-        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+        super.onActivityResult(requestCode, resultCode, data);
+        if(requestCode==PREF_REQ_CODE) {
+            SetupOSC();
+        }
     }
 
     private class OSCSendMessageTask extends AsyncTask<Object, Void, Boolean> {

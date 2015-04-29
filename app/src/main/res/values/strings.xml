@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">GridStrument</string>
-    <string name="hello_world">Hello world!</string>
+    <string name="app_preference_name">GridStrument Settings</string>
+    <string name="default_host_ip">10.10.0.19</string>
+    <string name="default_host_port">8675</string>
     <string name="action_notes_off">Notes Off</string>
     <string name="action_settings">Settings...</string>
 </resources>

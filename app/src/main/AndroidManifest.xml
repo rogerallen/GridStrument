@@ -23,6 +23,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".MainPreferenceActivity"
+            android:label="@string/app_preference_name"
+            android:screenOrientation="landscape" >
+            <intent-filter>
+                <action android:name=".MainPreferenceActivity" />
+                <category android:name="android.intent.category.PREFERENCE" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

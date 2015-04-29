@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <EditTextPreference
+        android:title="Server IP Address"
+        android:key="server_ip"
+        android:summary="Please provide the destination computer IP address."></EditTextPreference>
+    <EditTextPreference
+        android:title="Server Port Number"
+        android:key="server_port"
+        android:inputType="number"
+        android:summary="Please provide the destination computer port."></EditTextPreference>
+</PreferenceScreen>
