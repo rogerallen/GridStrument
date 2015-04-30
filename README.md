@@ -33,9 +33,9 @@ Update via the Settings menu with your local configuration information
 * Starting Note = MIDI note value for the lower left corner grid cell.  Default is 48 or C3.
 
 Sends OSC messages with this format:
-* note on/off = "/vkb_midi/<channel>/note/<note_number>" and the parameter is 0-127 velocity.  0 indicates note off
-* y-axis modulation = "/vkb_midi/<channel>/pitch" and the parameter is 0-0x3fff bend where 0x2000 is the center.
-* x-axis modulation = "/vkb_midi/<channel>/cc/1" (mod-wheel) and the parameter is 0-127.
+* note on/off = `/vkb_midi/<channel>/note/<note_number>` and the parameter is 0-127 velocity.  0 indicates note off
+* y-axis modulation = `/vkb_midi/<channel>/pitch` and the parameter is 0-0x3fff bend where 0x2000 is the center.
+* x-axis modulation = `/vkb_midi/<channel>/cc/1` (mod-wheel) and the parameter is 0-127.
 
 The y-axis modulation is controlled by the Pitch Bend Range.
 
