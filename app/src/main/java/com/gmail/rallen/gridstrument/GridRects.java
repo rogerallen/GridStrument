@@ -9,7 +9,7 @@ public class GridRects extends GridDrawables {
     }
 
     // add V0, V1 for a rectangle upper-left & lower-right verts
-    public void add(float x0, float y0, float z0,  // FIXME remove z0,z1
+    public void add(float x0, float y0, float z0,  // TODO remove z0,z1
                     float x1, float y1, float z1) {
         dirty = true;
         mCoords.add(x0);

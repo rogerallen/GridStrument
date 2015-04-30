@@ -16,7 +16,6 @@ import com.illposed.osc.OSCPortOut;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.Arrays;
 
 public class MainActivity extends ActionBarActivity {
@@ -53,17 +52,14 @@ public class MainActivity extends ActionBarActivity {
 
         SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
         String prefServerIP = SP.getString("server_ip", getString(R.string.default_host_ip));
-        String prefServerPort = SP.getString("server_port", getString(R.string.default_host_port));
-        int prefServerPortNum;
-        try {
-            prefServerPortNum = Integer.parseInt(prefServerPort);
-        } catch(NumberFormatException ex) {
-            Log.e("SetupOSC","bad port value.  Using default port.");
-            prefServerPortNum = Integer.parseInt(getString(R.string.default_host_port));
-        }
-        Log.i("preferences", "server_ip=" + prefServerIP);
-        Log.i("preferences", "server_host=" + prefServerPortNum);
-        if(mOSCServerIP != prefServerIP) {
+        int prefServerPortNum = GetIntDefault(SP,"server_port",R.string.default_host_port);
+        int prefPitchBendRangeNum = GetIntDefault(SP,"pitch_bend_range",R.string.default_pitch_bend_range);
+        int prefBaseNoteNum = GetIntDefault(SP,"base_note", R.string.default_base_note);
+        Log.i("preferences", "server_ip        = " + prefServerIP);
+        Log.i("preferences", "server_port      = " + prefServerPortNum);
+        Log.i("preferences", "pitch_bend_range = " + prefPitchBendRangeNum);
+        Log.i("preferences", "base_note        = " + prefBaseNoteNum);
+        if(!mOSCServerIP.equals(prefServerIP)) {
             needsUpdate = true;
             mOSCServerIP = prefServerIP;
         }
@@ -71,6 +67,9 @@ public class MainActivity extends ActionBarActivity {
             needsUpdate = true;
             mOSCServerPort = prefServerPortNum;
         }
+        // no harm to always setting these
+        mGLView.setPitchBendRange(prefPitchBendRangeNum);
+        mGLView.setBaseNote(prefBaseNoteNum);
 
         if(needsUpdate) {
             try {
@@ -85,9 +84,20 @@ public class MainActivity extends ActionBarActivity {
                 Log.e("OSCPortOut", "Unknown exception " + e);
                 mOSCPortOut = null;
             }
-            mGLView.setOSCPortOut(mOSCPortOut);  // TODO test mOSCPortOut == null;
+            mGLView.setOSCPortOut(mOSCPortOut);
         }
 
+    }
+
+    private int GetIntDefault(SharedPreferences SP, String s, int default_id) {
+        String prefStr = SP.getString(s, getString(default_id));
+        int v;
+        try {
+            v = Integer.parseInt(prefStr);
+        } catch(NumberFormatException ex) {
+            v = Integer.parseInt(getString(default_id));
+        }
+        return v;
     }
 
     @Override

@@ -20,16 +20,15 @@ public class GridGLSurfaceView extends GLSurfaceView {
     private static final int MAX_NOTES = 16;
     private static final float FINGER_SIZE_INCHES = 0.6f;
 
-    // FIXME as GUI settings
-    private int mRange = 12;  // how far to stretch? 1 grid unit?  12?
-    float mBaseNote = 48.0f;  // which note is in lower-left corner
+    private int mPitchBendRange = 12;  // how far to stretch? 1 grid unit?  12?
+    private float mBaseNote = 48.0f;  // which note is in lower-left corner
     // C.D.EF.G.A.BC
     // 0123456789012
-    float mStride = 7.0f;     // moving up one column is this many notes
-    float mMinPressureDomain = 0.10f;
-    float mMaxPressureDomain = 0.45f;
-    float mMinPressureRange  = 0.2f;
-    float mMaxPressureRange  = 1.0f;
+    private float mStride = 7.0f;     // moving up one column is this many notes
+    private float mMinPressureDomain = 0.10f;
+    private float mMaxPressureDomain = 0.45f;
+    private float mMinPressureRange  = 0.2f;
+    private float mMaxPressureRange  = 1.0f;
 
     private final GridGLRenderer mRenderer;
     private GridLines gridLines, touchLines, curLines, pressLines;
@@ -167,6 +166,12 @@ public class GridGLSurfaceView extends GLSurfaceView {
     public void setDPI(float xdpi, float ydpi) {
         mXdpi = xdpi;
         mYdpi = ydpi;
+    }
+    public void setPitchBendRange(int n) {
+        mPitchBendRange = n;
+    }
+    public void setBaseNote(int n) {
+       mBaseNote = n;
     }
 
     //public void setMidiOutput(NetworkMidiOutput midiOut) {
@@ -356,7 +361,7 @@ public class GridGLSurfaceView extends GLSurfaceView {
             }
         }
         // normalize, clamp & pack into bytes each delta modulation
-        float pitchDelta = 0x2000 + 0x2000*(deltax/(mRange*mCellWidth));
+        float pitchDelta = 0x2000 + 0x2000*(deltax/(mPitchBendRange *mCellWidth));
         pitchDelta = (pitchDelta > 0x3fff) ? 0x3ffff : ((pitchDelta < 0) ? 0 : pitchDelta);
         byte pitchHighByte = (byte)((((int)pitchDelta)>>7) & 0x7f);
         byte pitchLowByte = (byte)(((int)pitchDelta) & 0x7f);
