@@ -64,9 +64,9 @@ Wired tethering the Android device to the host PC should reduce latency, jitter,
 
 With the USB Cord plugged in, go to Settings -> More... -> Tethering & portable hotspot -> USB Tethering and enable tethering.
 
-On the Mac, this driver works for me http://joshuawise.com/horndis.
-On the PC, *TBD*
-On Linux, *TBD*
+* On the Mac, this driver works for me http://joshuawise.com/horndis.  See your server IP address in System Preferences -> Network.
+* On the PC, *TBD*
+* On Linux, *TBD*
 
 ## License
 
