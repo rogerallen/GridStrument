@@ -3,14 +3,14 @@
 An experiment in OSC control via android touch events.  Sends events from the Android device to a
 host computer that listens & responds to OSC messages.
 
-Inspired by the LinnStrument http://www.rogerlinndesign.com/linnstrument.html and Madrona Labs 
+Inspired by the LinnStrument http://www.rogerlinndesign.com/linnstrument.html and Madrona Labs
 SoundPlane http://madronalabs.com/soundplane.
 
 Is it possible for an Android tablet App to give a similar experience?  Let's see.
 
 ## Status
 
-Basically works with the NVIDIA SHIELD Tablet + Reaper if you have this ReaperOSC config.  
+Basically works with the NVIDIA SHIELD Tablet + Reaper if you have this ReaperOSC config.
 
 ```text
 VKB_MIDI_NOTE i/vkb_midi/@/note/@
@@ -43,13 +43,13 @@ The x-axis modulation saturates over a single cell size.
 
 ## Notes
 
-Originally written to use MIDI with Humatic nmj, mnet MIDI tools, but I found sending MIDI messages 
+Originally written to use MIDI with Humatic nmj, mnet MIDI tools, but I found sending MIDI messages
 unreliable.
 
-Looked at https://github.com/kshoji/USB-MIDI-Driver, but that is a Android<->USB MIDI device 
+Looked at https://github.com/kshoji/USB-MIDI-Driver, but that is a Android<->USB MIDI device
 connector.
 
-Could consider http://www.juce.com/ for their midi connectivity, but that seemed like a lot of 
+Could consider http://www.juce.com/ for their midi connectivity, but that seemed like a lot of
 extra work.
 
 Switched to OSC based on this http://physcomp.org/tutorial-android-osc-communication/ and
@@ -57,6 +57,16 @@ https://github.com/Gkxd/OSCTutorial/blob/master/app/src/main/java/com/dhua/osctu
 which uses http://www.illposed.com/software/javaosc.html
 
 This seems to work, but network latency can sometimes be annoyingly high.
+
+### USB Tethering
+
+Wired tethering the Android device to the host PC should reduce latency, jitter, etc.
+
+With the USB Cord plugged in, go to Settings -> More... -> Tethering & portable hotspot -> USB Tethering and enable tethering.
+
+On the Mac, this driver works for me http://joshuawise.com/horndis.
+On the PC, *TBD*
+On Linux, *TBD*
 
 ## License
 
