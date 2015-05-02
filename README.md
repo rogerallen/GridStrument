@@ -6,19 +6,18 @@ host computer that listens & responds to OSC messages.
 Inspired by the LinnStrument http://www.rogerlinndesign.com/linnstrument.html and Madrona Labs
 SoundPlane http://madronalabs.com/soundplane.
 
-Is it possible for an Android tablet App to give a similar experience?  Let's see.
+Is it possible for an Android tablet App to give a similar experience?  Let's see!
 
 ## Status
 
-Basically works with the NVIDIA SHIELD Tablet + Reaper if you have this ReaperOSC config.
+Tested to basically work with the NVIDIA SHIELD Tablet + Reaper if you
+set it to use the control surface Default OSC config.
 
-```text
-VKB_MIDI_NOTE i/vkb_midi/@/note/@
-VKB_MIDI_CC i/vkb_midi/@/cc/@
-VKB_MIDI_PITCH i/vkb_midi/@/pitch
-```
+It is ready for others to try it out--provided you can build it and
+figure out how to integrate an OSC controller to your DAW.
 
-Now looking for sounds & synths that especially benefit from the instrument interface.
+Now looking for sounds & synths that especially benefit from the
+instrument interface.
 
 ## Usage
 
@@ -43,6 +42,8 @@ The x-axis modulation saturates over a single cell size.
 
 ## Notes
 
+### Development
+
 Originally written to use MIDI with Humatic nmj, mnet MIDI tools, but I found sending MIDI messages
 unreliable.
 
@@ -57,6 +58,17 @@ https://github.com/Gkxd/OSCTutorial/blob/master/app/src/main/java/com/dhua/osctu
 which uses http://www.illposed.com/software/javaosc.html
 
 This seems to work, but network latency can sometimes be annoyingly high.
+
+### Reaper details
+
+The default OSC config works, but if you want to make your own simpler
+file to use, this should be all you need.
+
+```text
+VKB_MIDI_NOTE i/vkb_midi/@/note/@
+VKB_MIDI_CC i/vkb_midi/@/cc/@
+VKB_MIDI_PITCH i/vkb_midi/@/pitch
+```
 
 ### USB Tethering
 
