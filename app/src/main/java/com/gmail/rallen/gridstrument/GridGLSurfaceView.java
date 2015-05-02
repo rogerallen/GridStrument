@@ -1,6 +1,8 @@
 package com.gmail.rallen.gridstrument;
 
 import android.content.Context;
+import android.graphics.Point;
+import android.graphics.PointF;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.os.AsyncTask;
@@ -12,137 +14,155 @@ import com.illposed.osc.OSCMessage;
 import com.illposed.osc.OSCPortOut;
 
 import java.util.Arrays;
+import java.util.Vector;
 
 /**
- * GridGLSurfaceView
+ * GridGLSurfaceView (really a ViewController)
  */
 public class GridGLSurfaceView extends GLSurfaceView {
-    private static final int MAX_NOTES = 16;
-    private static final float FINGER_SIZE_INCHES = 0.6f;
+    private static final int MAX_NOTES = 16;  // maybe 2 players can drive?
 
-    private int mPitchBendRange = 12;  // how far to stretch? 1 grid unit?  12?
-    private float mBaseNote = 48.0f;  // which note is in lower-left corner
+    // configuration options
+    private int mPitchBendRange      = 12;    // how far to stretch? 1 grid unit?  12?
+    private float mBaseNote          = 48.0f; // which note is in lower-left corner
     // C.D.EF.G.A.BC
     // 0123456789012
-    private float mStride = 7.0f;     // moving up one column is this many notes
-    private float mMinPressureDomain = 0.10f;
+    private float mStride            = 5.0f;  // 5 matches the LinnStrument default
+    private float mMinPressureDomain = 0.10f; // linear region to map from...
     private float mMaxPressureDomain = 0.45f;
-    private float mMinPressureRange  = 0.2f;
+    private float mMinPressureRange  = 0.2f;  // linear region to map to.
     private float mMaxPressureRange  = 1.0f;
+    private float mFingerSizeInches  = 0.6f;
 
+    // rendering vars...
     private final GridGLRenderer mRenderer;
-    private GridLines gridLines, touchLines, curLines, pressLines;
-    private GridRects[] mLightRects = {
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f),
-            new GridRects(0.5f, 0.5f, 0.5f, 1.0f)
-    };
-    //private NetworkMidiOutput mMidiOut = null;
-    private OSCPortOut mOSCPortOut;
-
+    private GridLines gridLines;
     private float mXdpi, mYdpi;
+    private float mCellWidth, mCellHeight;
 
-    private float mCellWidth, mCellHeight = 200f;
-    private float[] mTouchXs = new float[MAX_NOTES];
-    private float[] mTouchYs = new float[MAX_NOTES];
-    private float[] mCurXs = new float[MAX_NOTES];
-    private float[] mCurYs = new float[MAX_NOTES];
-    private float[] mCurPressures = new float[MAX_NOTES];
+    private OSCPortOut mOSCPortOut;
+    private GridOSCController mOSC = new GridOSCController();
 
-    private float[] mTouchMatrix = new float[16];
-    private float[] mCurMatrix = new float[16];
-    private float[] mPressMatrix = new float[16];
-    private float[][] mLightMatrices = {
-            new float[16], new float[16], new float[16], new float[16],
-            new float[16], new float[16], new float[16], new float[16],
-            new float[16], new float[16], new float[16], new float[16],
-            new float[16], new float[16], new float[16], new float[16]
+    private GridFinger[] mFingers = {
+            new GridFinger(0), new GridFinger(1), new GridFinger(2), new GridFinger(3),
+            new GridFinger(4), new GridFinger(5), new GridFinger(6), new GridFinger(7),
+            new GridFinger(8), new GridFinger(9), new GridFinger(10), new GridFinger(11),
+            new GridFinger(12), new GridFinger(13), new GridFinger(14), new GridFinger(15)
     };
 
-    // FIXME -- all this midi state handling is out-of-date
+    private class OSCSendMessageTask extends AsyncTask<Object, Void, Boolean> {
+        private String mAddress;
+        OSCSendMessageTask(String address) {
+            mAddress = address;
+        }
+        protected Boolean doInBackground(Object... objs) {
+            //Log.d("dib","len="+objs.length+" "+objs);
+            try {
+                OSCMessage message = new OSCMessage(mAddress, Arrays.asList(objs));
+                mOSCPortOut.send(message);
+            } catch (Exception e) {
+                Log.e("OSCSendMessageTask","Unknown exception "+e);
+            }
+            return true;
+        }
+    }
 
-    // Aha!  Sending multiple midiOut packets back-to-back results in dropped packets.
-    // So, packing multiple packets into one array will be necessary.
-    // Note on will reset the pitch-bend & mod wheel.
-    private byte[][] mNoteOns = { // 0x80 Note Off (0x90 + velocity=0 also works)
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe0, (byte) 0x00, (byte) 0x40, (byte) 0x90, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xb1, (byte) 0x01, (byte) 0x00, (byte) 0xe1, (byte) 0x00, (byte) 0x40, (byte) 0x91, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xb2, (byte) 0x01, (byte) 0x00, (byte) 0xe2, (byte) 0x00, (byte) 0x40, (byte) 0x92, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xb3, (byte) 0x01, (byte) 0x00, (byte) 0xe3, (byte) 0x00, (byte) 0x40, (byte) 0x93, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xb4, (byte) 0x01, (byte) 0x00, (byte) 0xe4, (byte) 0x00, (byte) 0x40, (byte) 0x94, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xb5, (byte) 0x01, (byte) 0x00, (byte) 0xe5, (byte) 0x00, (byte) 0x40, (byte) 0x95, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xb6, (byte) 0x01, (byte) 0x00, (byte) 0xe6, (byte) 0x00, (byte) 0x40, (byte) 0x96, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xb7, (byte) 0x01, (byte) 0x00, (byte) 0xe7, (byte) 0x00, (byte) 0x40, (byte) 0x97, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xb8, (byte) 0x01, (byte) 0x00, (byte) 0xe8, (byte) 0x00, (byte) 0x40, (byte) 0x98, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xb9, (byte) 0x01, (byte) 0x00, (byte) 0xe9, (byte) 0x00, (byte) 0x40, (byte) 0x99, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xba, (byte) 0x01, (byte) 0x00, (byte) 0xea, (byte) 0x00, (byte) 0x40, (byte) 0x9a, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xbb, (byte) 0x01, (byte) 0x00, (byte) 0xeb, (byte) 0x00, (byte) 0x40, (byte) 0x9b, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xbc, (byte) 0x01, (byte) 0x00, (byte) 0xec, (byte) 0x00, (byte) 0x40, (byte) 0x9c, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xbd, (byte) 0x01, (byte) 0x00, (byte) 0xed, (byte) 0x00, (byte) 0x40, (byte) 0x9d, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xbe, (byte) 0x01, (byte) 0x00, (byte) 0xee, (byte) 0x00, (byte) 0x40, (byte) 0x9e, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0xbf, (byte) 0x01, (byte) 0x00, (byte) 0xef, (byte) 0x00, (byte) 0x40, (byte) 0x9f, (byte) 0x3c, (byte) 0}
-    };
-    private byte[][] mNoteOffs = { // 0x90 Note On
-            new byte[]{(byte) 0x90, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x91, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x92, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x93, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x94, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x95, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x96, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x97, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x98, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x99, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x9a, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x9b, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x9c, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x9d, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x9e, (byte) 0x3c, (byte) 0},
-            new byte[]{(byte) 0x9f, (byte) 0x3c, (byte) 0}
-    };
-    // 0xE0 Pitch bend
-    // [1] = 1 // mod wheel (coarse), 33 mod wheel (fine)
-    // [1] = 2 // breath control (coarse), 34 bc (fine)
-    private byte[][] mModulates = {
-            new byte[]{(byte) 0xb0, (byte) 0x01, (byte) 0x00, (byte) 0xe0, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb1, (byte) 0x01, (byte) 0x00, (byte) 0xe1, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb2, (byte) 0x01, (byte) 0x00, (byte) 0xe2, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb3, (byte) 0x01, (byte) 0x00, (byte) 0xe3, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb4, (byte) 0x01, (byte) 0x00, (byte) 0xe4, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb5, (byte) 0x01, (byte) 0x00, (byte) 0xe5, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb6, (byte) 0x01, (byte) 0x00, (byte) 0xe6, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb7, (byte) 0x01, (byte) 0x00, (byte) 0xe7, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb8, (byte) 0x01, (byte) 0x00, (byte) 0xe8, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xb9, (byte) 0x01, (byte) 0x00, (byte) 0xe9, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xba, (byte) 0x01, (byte) 0x00, (byte) 0xea, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xbb, (byte) 0x01, (byte) 0x00, (byte) 0xeb, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xbc, (byte) 0x01, (byte) 0x00, (byte) 0xec, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xbd, (byte) 0x01, (byte) 0x00, (byte) 0xed, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xbe, (byte) 0x01, (byte) 0x00, (byte) 0xee, (byte) 0x00, (byte) 0x40},
-            new byte[]{(byte) 0xbf, (byte) 0x01, (byte) 0x00, (byte) 0xef, (byte) 0x00, (byte) 0x40}
-    };
-    // Other potential controls
-    // 0xA0     Aftertouch + 1 byte for note + 1 byte for value
-    // 0xD0     Channel Pressure + 1 byte for value (not per-note)
-    private boolean[] mActiveNotes = new boolean[]{
-            false, false, false, false,
-            false, false, false, false,
-            false, false, false, false,
-            false, false, false, false
-    };
+    private class GridOSCController {
+        private int lastPressure = -1, lastModulationX = -1, lastModulationY = -1;
+        public void sendPressure(int channel, float p) {
+            int pi = (int)clamp(0f, 127f, p);
+            if(pi != lastPressure) {
+                lastPressure = pi;
+            }
+        }
+        public void sendModulationX(int channel, float mx) {
+            int mxi = (int)clamp(0f,1f*0x3fff,0x2000 + (0x2000*(mx/(mPitchBendRange*mCellWidth))));
+            if(mxi != lastModulationX) {
+                new OSCSendMessageTask(String.format("/vkb_midi/%d/pitch",channel)).execute(mxi);
+                lastModulationX = mxi;
+            }
+        }
+        public void sendModulationY(int channel, float my) {
+            int myi = (int)clamp(0f, 127f, 127f*(Math.abs(my)/mCellHeight));
+            if(myi != lastModulationY) {
+                new OSCSendMessageTask(String.format("/vkb_midi/%d/cc/%d",channel,1)).execute(myi);
+                lastModulationY = myi;
+            }
+        }
+        public void sendNote(int channel, int note, float velocity) {
+            int vi = (int)clamp(0f, 127f, (float)Math.floor(velocity*127 + 0.5f));
+            new OSCSendMessageTask(String.format("/vkb_midi/%d/note/%d",channel,note)).execute(vi);
+        }
+
+    }
+
+    private class GridFinger {
+        public int       channel      = 0;
+        public PointF    touch        = new PointF();
+        public PointF    current      = new PointF();
+        public float     pressure     = 0.0f;
+        public float[]   lightMatrix  = new float[16];
+        public GridRects lightRect    = new GridRects(0.5f, 0.5f, 0.5f, 1.0f);
+        public boolean   active       = false;
+        public int       note         = 0;
+
+        GridFinger(int c) {
+            channel = c;
+        }
+        public float getModulationX() {
+            return current.x - touch.x;
+        }
+        public float getModulationY() {
+            return current.y - touch.y;
+        }
+        public void setPressure(float p) {
+            // scale (minDomain,maxDomain) value to (minRange,maxRange)
+            pressure = clamp(mMinPressureRange, mMaxPressureRange,
+                    (p - mMinPressureDomain) / (mMaxPressureDomain-mMinPressureDomain));
+        }
+        private void eventDown() {
+            touch = current;
+            note = (int)clamp(0f, 127f,
+                    (float)(mBaseNote + Math.floor(touch.x/mCellWidth) +  mStride*Math.floor(touch.y/mCellHeight)));
+            if(active) {
+                Log.e("eventDown",String.format("MISSED NOTE OFF on Channel %d", channel));
+            }
+            active = true;
+            // light rect
+            float x = (float)Math.floor(touch.x/mCellWidth)*mCellWidth + mCellWidth/2;
+            float y = (float)Math.floor(touch.y/mCellHeight)*mCellHeight + mCellHeight / 2;
+            Matrix.setIdentityM(lightMatrix, 0);
+            Matrix.translateM(lightMatrix, 0, x, y, 0.0f);
+            lightRect.setModelMatrix(lightMatrix);
+            lightRect.setColor(pressure, pressure, pressure, 1.0f);
+
+            mOSC.sendPressure(channel, 0f);
+            mOSC.sendModulationX(channel, 0f);
+            mOSC.sendModulationY(channel, 0f);
+            mOSC.sendNote(channel, note, pressure);
+        }
+        private void eventUp() {
+            if(!active) {
+                Log.e("eventUp",String.format("MISSED NOTE ON on Channel %d", channel));
+            }
+            active = false;
+            // light rect offscreen
+            Matrix.setIdentityM(lightMatrix, 0);
+            Matrix.translateM(lightMatrix, 0, -mCellWidth / 2, -mCellHeight / 2, 0.0f);
+            lightRect.setModelMatrix(lightMatrix);
+
+            mOSC.sendNote(channel, note, 0.0f);
+        }
+        private void eventMove() {
+            if(!active) {
+                if(getModulationX() + getModulationY() != 0) {
+                    Log.e("eventMove", String.format("MISSING NOTE ON on Channel %d", channel));
+                }
+            }
+            mOSC.sendModulationX(channel, getModulationX());
+            mOSC.sendModulationY(channel, getModulationY());
+        }
+    }
 
     public GridGLSurfaceView(Context context) {
         super(context);
@@ -150,17 +170,12 @@ public class GridGLSurfaceView extends GLSurfaceView {
         mRenderer = new GridGLRenderer();
         setRenderer(mRenderer);
         gridLines = new GridLines(0.9f, 0.9f, 0.9f, 1.0f);
-        touchLines = new GridLines(0.9f, 0.5f, 0.5f, 1.0f);
-        curLines = new GridLines(0.5f, 0.9f, 0.5f, 1.0f);
-        pressLines = new GridLines(0.9f, 0.9f, 0.9f, 1.0f);
         for (int i = 0; i < 16; i++) {
-            mRenderer.addItem(mLightRects[i]);
+            mRenderer.addItem(mFingers[i].lightRect);
         }
         mRenderer.addItem(gridLines);
-        //mRenderer.addItem(touchLines);
-        //mRenderer.addItem(curLines);
-        //mRenderer.addItem(pressLines);
         mXdpi = mYdpi = 200;
+        mCellWidth = mCellHeight = 200f;
     }
 
     public void setDPI(float xdpi, float ydpi) {
@@ -171,12 +186,9 @@ public class GridGLSurfaceView extends GLSurfaceView {
         mPitchBendRange = n;
     }
     public void setBaseNote(int n) {
-       mBaseNote = n;
+        mBaseNote = n;
     }
 
-    //public void setMidiOutput(NetworkMidiOutput midiOut) {
-    //    mMidiOut = midiOut;
-    //}
     public void setOSCPortOut(OSCPortOut aOSCPortOut) {
         mOSCPortOut = aOSCPortOut;
     }
@@ -185,8 +197,8 @@ public class GridGLSurfaceView extends GLSurfaceView {
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
 
-        mCellWidth = FINGER_SIZE_INCHES * mXdpi;
-        mCellHeight = FINGER_SIZE_INCHES * mYdpi;
+        mCellWidth = mFingerSizeInches * mXdpi;
+        mCellHeight = mFingerSizeInches * mYdpi;
         int N = (int) Math.ceil((right - left) / mCellWidth) + 1;
         gridLines.reset();
         for (int i = 0; i <= N; i++) {
@@ -194,23 +206,12 @@ public class GridGLSurfaceView extends GLSurfaceView {
             gridLines.add(0.0f, (float) i * mCellHeight, 0.0f, (float) N * mCellWidth, (float) i * mCellHeight, 0.0f);
         }
 
-        touchLines.reset();
-        touchLines.add(-mCellWidth, 0.0f, 0.0f, mCellWidth, 0.0f, 0.0f);
-        touchLines.add(0.0f, -mCellHeight, 0.0f, 0.0f, mCellHeight, 0.0f);
-
-        curLines.reset();
-        curLines.add(-mCellWidth, 0.0f, 0.0f, mCellWidth, 0.0f, 0.0f);
-        curLines.add(0.0f, -mCellHeight, 0.0f, 0.0f, mCellHeight, 0.0f);
-
-        pressLines.reset();
-        pressLines.add(-mCellWidth, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-
         for (int i = 0; i < 16; i++) {
-            mLightRects[i].reset();
-            mLightRects[i].add(-mCellWidth / 2, mCellHeight / 2, 0.0f, mCellWidth / 2, -mCellHeight / 2, 0.0f);
-            Matrix.setIdentityM(mLightMatrices[i], 0);
-            Matrix.translateM(mLightMatrices[i], 0, -mCellWidth / 2, -mCellHeight / 2, 0.0f); // offscreen
-            mLightRects[i].setModelMatrix(mLightMatrices[i]);
+            mFingers[i].lightRect.reset();
+            mFingers[i].lightRect.add(-mCellWidth / 2, mCellHeight / 2, 0.0f, mCellWidth / 2, -mCellHeight / 2, 0.0f);
+            Matrix.setIdentityM(mFingers[i].lightMatrix, 0);
+            Matrix.translateM(mFingers[i].lightMatrix, 0, -mCellWidth / 2, -mCellHeight / 2, 0.0f); // offscreen
+            mFingers[i].lightRect.setModelMatrix(mFingers[i].lightMatrix);
         }
     }
 
@@ -223,25 +224,11 @@ public class GridGLSurfaceView extends GLSurfaceView {
         int pointerCount = ev.getPointerCount();
         //final long eventTime = ev.getEventTime();
 
-         for (int p = 0; p < pointerCount; p++) {
-             int pointerId = ev.getPointerId(p);
-             mCurXs[pointerId] = ev.getX(p);
-             mCurYs[pointerId] = this.getHeight() - ev.getY(p); // Y-invert for OpenGL
-             // scale (minDomain,maxDomain) value to (minRange,maxRange)
-             //Log.d("press","!"+ev.getPressure());
-             mCurPressures[pointerId] = (ev.getPressure(p) - mMinPressureDomain) / (mMaxPressureDomain-mMinPressureDomain);
-             mCurPressures[pointerId] = clamp(mMinPressureRange, mMaxPressureRange, mCurPressures[pointerId]);
-             //Log.d("press","->"+mCurPressures[pointerId]);
-
-         }
-
-        Matrix.setIdentityM(mCurMatrix,0);
-        Matrix.translateM(mCurMatrix, 0, mCurXs[0], mCurYs[0], 0.0f);
-        curLines.setModelMatrix(mCurMatrix);
-
-        Matrix.setIdentityM(mPressMatrix, 0);
-        Matrix.translateM(mPressMatrix, 0, mCurPressures[0] * mCellWidth, mCellHeight / 2, 0.0f);
-        pressLines.setModelMatrix(mPressMatrix);
+        for (int p = 0; p < pointerCount; p++) {
+            int pointerId = ev.getPointerId(p);
+            mFingers[pointerId].current.set(ev.getX(p), this.getHeight() - ev.getY(p)); // Y-invert for OpenGL
+            mFingers[pointerId].setPressure(ev.getPressure(p));
+        }
 
         final int historySize = ev.getHistorySize();
         if(historySize > 0) {
@@ -251,144 +238,32 @@ public class GridGLSurfaceView extends GLSurfaceView {
         switch (ev.getActionMasked()) {
             // ignoring ACTION_HOVER_*, ACTION_SCROLL
             case MotionEvent.ACTION_POINTER_DOWN:
-                eventDown(ev.getPointerId(ev.getActionIndex()));
+                mFingers[ev.getPointerId(ev.getActionIndex())].eventDown();
                 break;
             case MotionEvent.ACTION_POINTER_UP:
-                eventUp(ev.getPointerId(ev.getActionIndex()));
+                mFingers[ev.getPointerId(ev.getActionIndex())].eventUp();
                 break;
             case MotionEvent.ACTION_DOWN:
-                eventDown(ev.getPointerId(0));
+                mFingers[ev.getPointerId(0)].eventDown();
                 this.requestUnbufferedDispatch(ev); // move events will not be buffered (Android L & later)
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                eventUp(ev.getPointerId(0));
+                mFingers[ev.getPointerId(0)].eventUp();
                 break;
             case MotionEvent.ACTION_MOVE:
                 for (int p = 0; p < pointerCount; p++) {
-                    eventMove(ev.getPointerId(p));
+                    mFingers[ev.getPointerId(p)].eventMove();
                 }
                 break;
             case MotionEvent.ACTION_OUTSIDE:
-                Log.d("onTouch", "Outside? what to do?");
+                Log.e("onTouch", "Outside? what to do?");
                 break;
         }
         return true;
     }
 
-    private void eventMove(int pointerId) {
-        float dx = mCurXs[pointerId] - mTouchXs[pointerId];
-        float dy = mCurYs[pointerId] - mTouchYs[pointerId];
-        //Log.d("onTouch", String.format("cx: %.2f tx: %.2f p: %d id: %d", mCurXs[pointerId], mTouchXs[pointerId], p, pointerId));
-        sendModulate(pointerId, dx, dy);
-    }
-
-    private void eventDown(int pointerId) {
-        //Log.d("eventDown","down:"+pointerId);
-        mTouchXs[pointerId] = mCurXs[pointerId];
-        mTouchYs[pointerId] = mCurYs[pointerId];
-
-        // light rect
-        float x = (float)Math.floor(mTouchXs[pointerId]/mCellWidth)*mCellWidth + mCellWidth/2;
-        float y = (float)Math.floor(mTouchYs[pointerId]/mCellHeight)*mCellHeight + mCellHeight/2;
-        Matrix.setIdentityM(mLightMatrices[pointerId],0);
-        Matrix.translateM(mLightMatrices[pointerId], 0, x, y, 0.0f);
-        mLightRects[pointerId].setModelMatrix(mLightMatrices[pointerId]);
-        float color = mCurPressures[pointerId];
-        mLightRects[pointerId].setColor(color,color,color,1.0f);
-
-        if(pointerId == 0) {
-            Matrix.setIdentityM(mTouchMatrix, 0);
-            Matrix.translateM(mTouchMatrix, 0, mTouchXs[pointerId], mTouchYs[pointerId], 0.0f);
-            touchLines.setModelMatrix(mTouchMatrix);
-        }
-        updateNote(pointerId);
-        sendModulate(pointerId, 0.0f, 0.0f);
-        sendNoteOn(pointerId);
-    }
-
-    private void eventUp(int pointerId) {
-        //Log.d("eventUp","up:"+pointerId);
-
-        // light rect offscreen
-        Matrix.setIdentityM(mLightMatrices[pointerId],0);
-        Matrix.translateM(mLightMatrices[pointerId], 0, -mCellWidth/2, -mCellHeight/2, 0.0f);
-        mLightRects[pointerId].setModelMatrix(mLightMatrices[pointerId]);
-
-        mCurPressures[pointerId] = 0.0f;
-        if(pointerId == 0) {
-            Matrix.setIdentityM(mPressMatrix, 0);
-            Matrix.translateM(mPressMatrix, 0, mCurPressures[pointerId] * mCellWidth, mCellHeight / 2, 0.0f);
-            pressLines.setModelMatrix(mPressMatrix);
-        }
-        sendNoteOff(pointerId);
-    }
-
-    private void updateNote(int channel) {
-        byte curNote = (byte)clamp(0f,127f,(float)(mBaseNote +
-                                                   Math.floor(mTouchXs[channel]/ mCellWidth) +
-                                                   mStride*Math.floor(mTouchYs[channel]/ mCellHeight)));
-        byte curPressure = (byte)clamp(0f,127f,(float)Math.floor(mCurPressures[channel]*127 + 0.5f));
-        mNoteOns[channel][2*3+1] = curNote;
-        mNoteOns[channel][2*3+2] = curPressure;
-        mNoteOffs[channel][1] = curNote;
-    }
-
-    private void sendNoteOn(int channel) {
-        //Log.d("sendNoteOn",String.format("ch=%d", channel));
-        if(mActiveNotes[channel]) {
-            Log.e("sendNoteOn",String.format("MISSED NOTE OFF on Channel %d", channel));
-        }
-        mActiveNotes[channel] = true;
-        //sendMidi(mNoteOns[channel]);
-        new OSCSendMessageTask(String.format("/vkb_midi/%d/note/%d",channel,mNoteOns[channel][2*3+1])).execute((int) mNoteOns[channel][2 * 3 + 2]);
-    }
-
-    private void sendNoteOff(int channel) {
-        //Log.d("sendNoteOff",String.format("ch=%d", channel));
-        if(!(mActiveNotes[channel])) {
-            Log.e("sendNoteOff",String.format("MISSED NOTE ON on Channel %d", channel));
-        }
-        mActiveNotes[channel] = false;
-        //sendMidi(mNoteOffs[channel]);
-        new OSCSendMessageTask(String.format("/vkb_midi/%d/note/%d",channel,mNoteOffs[channel][1])).execute((int)mNoteOffs[channel][2]);
-    }
-
-    private void sendModulate(int channel, float deltax, float deltay) {
-        if(!(mActiveNotes[channel])) {
-            if(deltax + deltay != 0) {
-                Log.e("sendModulate", String.format("MISSING NOTE ON on Channel %d", channel));
-            }
-        }
-        // normalize, clamp & pack into bytes each delta modulation
-        float pitchDelta = 0x2000 + 0x2000*(deltax/(mPitchBendRange *mCellWidth));
-        pitchDelta = (pitchDelta > 0x3fff) ? 0x3ffff : ((pitchDelta < 0) ? 0 : pitchDelta);
-        byte pitchHighByte = (byte)((((int)pitchDelta)>>7) & 0x7f);
-        byte pitchLowByte = (byte)(((int)pitchDelta) & 0x7f);
-
-        float modDelta = 0x7f*(Math.abs(deltay)/ mCellHeight);
-        modDelta = (modDelta > 0x7f) ? 0x7f : ((modDelta < 0) ? 0 : modDelta);
-        byte modByte = (byte)(((int)modDelta) & 0x7f);
-
-        boolean changedPitch = !((mModulates[channel][3+1] == pitchLowByte) &&
-                            (mModulates[channel][3+2] == pitchHighByte));
-
-        boolean changedMod = (mModulates[channel][2] != modByte);
-        if(changedPitch) {
-            //Log.d("sendModulate",String.format("ch=%d, dlt=%f %02x%02x", channel, delta, ((d>>7) & 0x7f), (d & 0x7f)));
-            mModulates[channel][3 + 1] = pitchLowByte;
-            mModulates[channel][3 + 2] = pitchHighByte;
-            new OSCSendMessageTask(String.format("/vkb_midi/%d/pitch",channel)).execute((int)pitchDelta);
-        }
-        if(changedMod) {
-            mModulates[channel][2] = modByte;
-            //sendMidi(mModulates[channel]);
-            new OSCSendMessageTask(String.format("/vkb_midi/%d/cc/%d",channel,(int)mModulates[channel][1])).execute((int)mModulates[channel][2]);
-
-        }
-    }
-
-    // for debug
+    /* for debug
     private void debugSamples(MotionEvent ev) {
         int pointerActionIndex = -1;
         String action = "?";
@@ -463,22 +338,5 @@ public class GridGLSurfaceView extends GLSurfaceView {
                     pointerId, pointerX, pointerY));
         }
     }
-
-    private class OSCSendMessageTask extends AsyncTask<Object, Void, Boolean> {
-        private String mAddress;
-        OSCSendMessageTask(String address) {
-            mAddress = address;
-        }
-        protected Boolean doInBackground(Object... objs) {
-            //Log.d("dib","len="+objs.length+" "+objs);
-            try {
-                OSCMessage message = new OSCMessage(mAddress, Arrays.asList(objs));
-                mOSCPortOut.send(message);
-            } catch (Exception e) {
-                Log.e("OSCSendMessageTask","Unknown exception "+e);
-            }
-            return true;
-        }
-    }
-
+*/
 }
