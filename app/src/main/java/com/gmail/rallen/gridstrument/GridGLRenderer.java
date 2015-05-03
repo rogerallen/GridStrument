@@ -17,6 +17,7 @@ public class GridGLRenderer implements GLSurfaceView.Renderer {
 
     private float[] mVPMatrix = new float[16];
     private ArrayList<GridDrawables> mSceneItems = new ArrayList<>();
+    private boolean mUsingSceneItems = false;
 
     @Override
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
@@ -26,14 +27,17 @@ public class GridGLRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onDrawFrame(GL10 unused) {
+        mUsingSceneItems = true;
         // Redraw background color
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         for (GridDrawables si : mSceneItems) {
             si.draw(mVPMatrix);
         }
+        mUsingSceneItems = false;
     }
 
     public void clearItems() {
+        while(mUsingSceneItems); // wait for drawing to be done
         mSceneItems.clear();
     }
 

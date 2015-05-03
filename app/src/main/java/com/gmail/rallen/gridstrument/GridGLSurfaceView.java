@@ -1,7 +1,6 @@
 package com.gmail.rallen.gridstrument;
 
 import android.content.Context;
-import android.graphics.Point;
 import android.graphics.PointF;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
@@ -13,8 +12,8 @@ import android.view.MotionEvent;
 import com.illposed.osc.OSCMessage;
 import com.illposed.osc.OSCPortOut;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Vector;
 
 /**
  * GridGLSurfaceView (really a ViewController)
@@ -23,26 +22,42 @@ public class GridGLSurfaceView extends GLSurfaceView {
     private static final int MAX_NOTES = 16;  // maybe 2 players can drive?
 
     // configuration options
-    private int mPitchBendRange      = 12;    // how far to stretch? 1 grid unit?  12?
-    private float mBaseNote          = 48.0f; // which note is in lower-left corner
+    private int mPitchBendRange       = 12;    // how far to stretch? 1 grid unit?  12?
+    private float mBaseNote           = 48.0f; // which note is in lower-left corner
     // C.D.EF.G.A.BC
     // 0123456789012
-    private float mStride            = 5.0f;  // 5 matches the LinnStrument default
-    private int   mModulationYControl = 1;
-    private float mMinPressureDomain = 0.10f; // linear region to map from...
-    private float mMaxPressureDomain = 0.45f;
-    private float mMinPressureRange  = 0.2f;  // linear region to map to.
-    private float mMaxPressureRange  = 1.0f;
-    private float mFingerSizeInches  = 0.6f;
+    private float mStride             = 5.0f;  // 5 matches the LinnStrument default
+    private int   mModulationYControl = 1;     // 1=mod wheel, 2=breath control, etc
+    private float mMinPressureDomain  = 0.10f; // linear region to map from...
+    private float mMaxPressureDomain  = 0.45f;
+    private float mMinPressureRange   = 0.2f;  // linear region to map to.
+    private float mMaxPressureRange   = 1.0f;
+    private float mFingerSizeInches   = 0.6f;
 
     // rendering vars...
     private final GridGLRenderer mRenderer;
-    private GridLines gridLines;
+    private GridLines mGridLines;
+    private ArrayList<GridRects> mNoteRects;
     private float mXdpi, mYdpi;
     private float mCellWidth, mCellHeight;
 
     private OSCPortOut mOSCPortOut;
     private GridOSCController mOSC = new GridOSCController();
+
+    private float[][] mNoteColors = { // modulo 12 color keys
+        new float[] {0.0f, 0.9f, 0.0f, 1.0f}, // C
+        new float[] {0.0f, 0.0f, 0.0f, 1.0f}, // C#
+        new float[] {0.0f, 0.9f, 0.9f, 1.0f}, // D
+        new float[] {0.0f, 0.0f, 0.0f, 1.0f}, // D#
+        new float[] {0.0f, 0.9f, 0.9f, 1.0f}, // E
+        new float[] {0.0f, 0.9f, 0.9f, 1.0f}, // F
+        new float[] {0.0f, 0.0f, 0.0f, 1.0f}, // F#
+        new float[] {0.0f, 0.9f, 0.9f, 1.0f}, // G
+        new float[] {0.0f, 0.0f, 0.0f, 1.0f}, // G#
+        new float[] {0.0f, 0.9f, 0.9f, 1.0f}, // A
+        new float[] {0.0f, 0.0f, 0.0f, 1.0f}, // A#
+        new float[] {0.0f, 0.9f, 0.9f, 1.0f}  // B
+    };
 
     private GridFinger[] mFingers = {
             new GridFinger(0), new GridFinger(1), new GridFinger(2), new GridFinger(3),
@@ -61,11 +76,6 @@ public class GridGLSurfaceView extends GLSurfaceView {
         setEGLContextClientVersion(2);
         mRenderer = new GridGLRenderer();
         setRenderer(mRenderer);
-        gridLines = new GridLines(0.9f, 0.9f, 0.9f, 1.0f);
-        for (int i = 0; i < 16; i++) {
-            mRenderer.addItem(mFingers[i].lightRect);
-        }
-        mRenderer.addItem(gridLines);
         mXdpi = mYdpi = 200;
         mCellWidth = mCellHeight = 200f;
     }
@@ -89,17 +99,41 @@ public class GridGLSurfaceView extends GLSurfaceView {
                 (float)(mBaseNote + Math.floor(x/mCellWidth) +  mStride*Math.floor(y/mCellHeight)));
     }
 
+    private void resetRenderer() {
+        mRenderer.clearItems();
+        for(GridRects g: mNoteRects) {
+            mRenderer.addItem(g);
+        }
+        for (int i = 0; i < 16; i++) {
+            mRenderer.addItem(mFingers[i].lightRect);
+        }
+        mRenderer.addItem(mGridLines);
+    }
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
 
         mCellWidth = mFingerSizeInches * mXdpi;
         mCellHeight = mFingerSizeInches * mYdpi;
-        int N = (int) Math.ceil((right - left) / mCellWidth) + 1;
-        gridLines.reset();
-        for (int i = 0; i <= N; i++) {
-            gridLines.add((float) i * mCellWidth, 0.0f, 0.0f, (float) i * mCellWidth, (float) N * mCellHeight, 0.0f);
-            gridLines.add(0.0f, (float) i * mCellHeight, 0.0f, (float) N * mCellWidth, (float) i * mCellHeight, 0.0f);
+        int numHorizCells = (int) Math.ceil((right - left) / mCellWidth) + 1;
+        int numVertCells = (int) Math.ceil((bottom - top) / mCellHeight) + 1;
+        mGridLines = new GridLines(0.9f, 0.9f, 0.9f, 1.0f);
+        mNoteRects = new ArrayList<GridRects>();
+        //mGridLines.reset();
+        for (int i = 0; i <= numHorizCells; i++) {
+            mGridLines.add((float) i * mCellWidth, 0.0f, 0.0f, (float) i * mCellWidth, (float) numHorizCells * mCellHeight, 0.0f);
+            mGridLines.add(0.0f, (float) i * mCellHeight, 0.0f, (float) numHorizCells * mCellWidth, (float) i * mCellHeight, 0.0f);
+            for(int j = 0; j <= numVertCells; j++) {
+                int note = xyToNote(i*mCellWidth+1,j*mCellHeight+1);
+                float[] curColor = mNoteColors[note % 12];
+                GridRects curRect = new GridRects(curColor[0],curColor[1],curColor[2],curColor[3]);
+                curRect.add(-mCellWidth/4f, mCellHeight/6f, 0f, mCellWidth/6f, -mCellHeight/4f, 0f);
+                float[] curMatrix = new float[16];
+                Matrix.setIdentityM(curMatrix, 0);
+                Matrix.translateM(curMatrix, 0, i * mCellWidth + mCellWidth / 2, j * mCellHeight + mCellHeight / 2, 0.0f);
+                curRect.setModelMatrix(curMatrix);
+                mNoteRects.add(curRect);
+            }
         }
 
         for (int i = 0; i < 16; i++) {
@@ -109,6 +143,8 @@ public class GridGLSurfaceView extends GLSurfaceView {
             Matrix.translateM(mFingers[i].lightMatrix, 0, -mCellWidth / 2, -mCellHeight / 2, 0.0f); // offscreen
             mFingers[i].lightRect.setModelMatrix(mFingers[i].lightMatrix);
         }
+
+        resetRenderer();
     }
 
     @Override
