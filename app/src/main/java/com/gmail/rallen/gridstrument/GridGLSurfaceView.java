@@ -30,7 +30,7 @@ public class GridGLSurfaceView extends GLSurfaceView {
     private int   mModulationYControl = 1;     // 1=mod wheel, 2=breath control, etc
     private float mMinPressureDomain  = 0.10f; // linear region to map from...
     private float mMaxPressureDomain  = 0.45f;
-    private float mMinPressureRange   = 0.2f;  // linear region to map to.
+    private float mMinPressureRange   = 1f/127f;  // linear region to map to.
     private float mMaxPressureRange   = 1.0f;
     private float mFingerSizeInches   = 0.6f;
 
@@ -101,11 +101,11 @@ public class GridGLSurfaceView extends GLSurfaceView {
 
     private void resetRenderer() {
         mRenderer.clearItems();
-        for(GridRects g: mNoteRects) {
-            mRenderer.addItem(g);
-        }
         for (int i = 0; i < 16; i++) {
             mRenderer.addItem(mFingers[i].lightRect);
+        }
+        for(GridRects g: mNoteRects) {
+            mRenderer.addItem(g);
         }
         mRenderer.addItem(mGridLines);
     }
@@ -118,7 +118,7 @@ public class GridGLSurfaceView extends GLSurfaceView {
         int numHorizCells = (int) Math.ceil((right - left) / mCellWidth) + 1;
         int numVertCells = (int) Math.ceil((bottom - top) / mCellHeight) + 1;
         mGridLines = new GridLines(0.9f, 0.9f, 0.9f, 1.0f);
-        mNoteRects = new ArrayList<GridRects>();
+        mNoteRects = new ArrayList<>();
         //mGridLines.reset();
         for (int i = 0; i <= numHorizCells; i++) {
             mGridLines.add((float) i * mCellWidth, 0.0f, 0.0f, (float) i * mCellWidth, (float) numHorizCells * mCellHeight, 0.0f);

@@ -33,6 +33,7 @@ Update via the Settings menu with your local configuration information
 
 Sends OSC messages with this format:
 * note on/off = `/vkb_midi/<channel>/note/<note_number>` and the parameter is 0-127 velocity.  0 indicates note off
+* pressure = `/vkb_midi/<channel>/channelpressure` and the parameter is 0-127 pressure
 * y-axis modulation = `/vkb_midi/<channel>/pitch` and the parameter is 0-0x3fff bend where 0x2000 is the center.
 * x-axis modulation = `/vkb_midi/<channel>/cc/1` (mod-wheel) and the parameter is 0-127.
 
@@ -59,6 +60,18 @@ which uses http://www.illposed.com/software/javaosc.html
 
 This seems to work, but network latency can sometimes be annoyingly high.
 
+### Pressure
+
+I believe "pressure" on an Android touchscreen is NOT directly related
+to how much pressure your finger is putting on the screen, but rather
+how large the area of contact your finger makes.  When you lightly
+press on the screen, only a small area of your finger makes contact.
+When you press down hard, a larger area makes contact.  If you try to
+press really hard on your screen and the area of finger contact does
+not change, there is no change in pressure reported to my app.
+
+So, don't press so hard you break your screen!
+
 ### Reaper details
 
 The default OSC config works, but if you want to make your own simpler
@@ -78,7 +91,7 @@ Wired tethering the Android device to the host PC should reduce latency, jitter,
 With the USB Cord plugged in, go to Settings -> More... -> Tethering & portable hotspot -> USB Tethering and enable tethering.
 
 * On the Mac, this driver works for me http://joshuawise.com/horndis.  See your server IP address in System Preferences -> Network.
-* On the PC, *TBD*
+* On the PC, it "just worked" to enable a Remote NDIS based Internet Sharing device in my Network and Internet -> Network Connections control panel.
 * On Linux, *TBD*
 
 ## License
