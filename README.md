@@ -67,6 +67,7 @@ file to use, this should be all you need.
 ```text
 VKB_MIDI_NOTE i/vkb_midi/@/note/@
 VKB_MIDI_CC i/vkb_midi/@/cc/@
+VKB_MIDI_CHANNELPRESSURE i/vkb_midi/@/channelpressure
 VKB_MIDI_PITCH i/vkb_midi/@/pitch
 ```
 

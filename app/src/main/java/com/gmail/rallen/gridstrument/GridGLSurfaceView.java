@@ -28,6 +28,7 @@ public class GridGLSurfaceView extends GLSurfaceView {
     // C.D.EF.G.A.BC
     // 0123456789012
     private float mStride            = 5.0f;  // 5 matches the LinnStrument default
+    private int   mModulationYControl = 1;
     private float mMinPressureDomain = 0.10f; // linear region to map from...
     private float mMaxPressureDomain = 0.45f;
     private float mMinPressureRange  = 0.2f;  // linear region to map to.
@@ -50,120 +51,11 @@ public class GridGLSurfaceView extends GLSurfaceView {
             new GridFinger(12), new GridFinger(13), new GridFinger(14), new GridFinger(15)
     };
 
-    private class OSCSendMessageTask extends AsyncTask<Object, Void, Boolean> {
-        private String mAddress;
-        OSCSendMessageTask(String address) {
-            mAddress = address;
-        }
-        protected Boolean doInBackground(Object... objs) {
-            //Log.d("dib","len="+objs.length+" "+objs);
-            try {
-                OSCMessage message = new OSCMessage(mAddress, Arrays.asList(objs));
-                mOSCPortOut.send(message);
-            } catch (Exception e) {
-                Log.e("OSCSendMessageTask","Unknown exception "+e);
-            }
-            return true;
-        }
+    static float clamp(float min, float max, float x) {
+        return ((x > max) ? max : ((x < min) ? min : x));
     }
 
-    private class GridOSCController {
-        private int lastPressure = -1, lastModulationX = -1, lastModulationY = -1;
-        public void sendPressure(int channel, float p) {
-            int pi = (int)clamp(0f, 127f, p);
-            if(pi != lastPressure) {
-                lastPressure = pi;
-            }
-        }
-        public void sendModulationX(int channel, float mx) {
-            int mxi = (int)clamp(0f,1f*0x3fff,0x2000 + (0x2000*(mx/(mPitchBendRange*mCellWidth))));
-            if(mxi != lastModulationX) {
-                new OSCSendMessageTask(String.format("/vkb_midi/%d/pitch",channel)).execute(mxi);
-                lastModulationX = mxi;
-            }
-        }
-        public void sendModulationY(int channel, float my) {
-            int myi = (int)clamp(0f, 127f, 127f*(Math.abs(my)/mCellHeight));
-            if(myi != lastModulationY) {
-                new OSCSendMessageTask(String.format("/vkb_midi/%d/cc/%d",channel,1)).execute(myi);
-                lastModulationY = myi;
-            }
-        }
-        public void sendNote(int channel, int note, float velocity) {
-            int vi = (int)clamp(0f, 127f, (float)Math.floor(velocity*127 + 0.5f));
-            new OSCSendMessageTask(String.format("/vkb_midi/%d/note/%d",channel,note)).execute(vi);
-        }
-
-    }
-
-    private class GridFinger {
-        public int       channel      = 0;
-        public PointF    touch        = new PointF();
-        public PointF    current      = new PointF();
-        public float     pressure     = 0.0f;
-        public float[]   lightMatrix  = new float[16];
-        public GridRects lightRect    = new GridRects(0.5f, 0.5f, 0.5f, 1.0f);
-        public boolean   active       = false;
-        public int       note         = 0;
-
-        GridFinger(int c) {
-            channel = c;
-        }
-        public float getModulationX() {
-            return current.x - touch.x;
-        }
-        public float getModulationY() {
-            return current.y - touch.y;
-        }
-        public void setPressure(float p) {
-            // scale (minDomain,maxDomain) value to (minRange,maxRange)
-            pressure = clamp(mMinPressureRange, mMaxPressureRange,
-                    (p - mMinPressureDomain) / (mMaxPressureDomain-mMinPressureDomain));
-        }
-        private void eventDown() {
-            touch = current;
-            note = (int)clamp(0f, 127f,
-                    (float)(mBaseNote + Math.floor(touch.x/mCellWidth) +  mStride*Math.floor(touch.y/mCellHeight)));
-            if(active) {
-                Log.e("eventDown",String.format("MISSED NOTE OFF on Channel %d", channel));
-            }
-            active = true;
-            // light rect
-            float x = (float)Math.floor(touch.x/mCellWidth)*mCellWidth + mCellWidth/2;
-            float y = (float)Math.floor(touch.y/mCellHeight)*mCellHeight + mCellHeight / 2;
-            Matrix.setIdentityM(lightMatrix, 0);
-            Matrix.translateM(lightMatrix, 0, x, y, 0.0f);
-            lightRect.setModelMatrix(lightMatrix);
-            lightRect.setColor(pressure, pressure, pressure, 1.0f);
-
-            mOSC.sendPressure(channel, 0f);
-            mOSC.sendModulationX(channel, 0f);
-            mOSC.sendModulationY(channel, 0f);
-            mOSC.sendNote(channel, note, pressure);
-        }
-        private void eventUp() {
-            if(!active) {
-                Log.e("eventUp",String.format("MISSED NOTE ON on Channel %d", channel));
-            }
-            active = false;
-            // light rect offscreen
-            Matrix.setIdentityM(lightMatrix, 0);
-            Matrix.translateM(lightMatrix, 0, -mCellWidth / 2, -mCellHeight / 2, 0.0f);
-            lightRect.setModelMatrix(lightMatrix);
-
-            mOSC.sendNote(channel, note, 0.0f);
-        }
-        private void eventMove() {
-            if(!active) {
-                if(getModulationX() + getModulationY() != 0) {
-                    Log.e("eventMove", String.format("MISSING NOTE ON on Channel %d", channel));
-                }
-            }
-            mOSC.sendModulationX(channel, getModulationX());
-            mOSC.sendModulationY(channel, getModulationY());
-        }
-    }
-
+    // ======================================================================
     public GridGLSurfaceView(Context context) {
         super(context);
         setEGLContextClientVersion(2);
@@ -192,6 +84,10 @@ public class GridGLSurfaceView extends GLSurfaceView {
     public void setOSCPortOut(OSCPortOut aOSCPortOut) {
         mOSCPortOut = aOSCPortOut;
     }
+    public int xyToNote(float x, float y) {
+        return (int)clamp(0f, 127f,
+                (float)(mBaseNote + Math.floor(x/mCellWidth) +  mStride*Math.floor(y/mCellHeight)));
+    }
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
@@ -213,10 +109,6 @@ public class GridGLSurfaceView extends GLSurfaceView {
             Matrix.translateM(mFingers[i].lightMatrix, 0, -mCellWidth / 2, -mCellHeight / 2, 0.0f); // offscreen
             mFingers[i].lightRect.setModelMatrix(mFingers[i].lightMatrix);
         }
-    }
-
-    static float clamp(float min, float max, float x) {
-        return ((x > max) ? max : ((x < min) ? min : x));
     }
 
     @Override
@@ -261,6 +153,129 @@ public class GridGLSurfaceView extends GLSurfaceView {
                 break;
         }
         return true;
+    }
+
+    // ======================================================================
+    private class OSCSendMessageTask extends AsyncTask<Object, Void, Boolean> {
+        private String mAddress;
+        OSCSendMessageTask(String address) {
+            mAddress = address;
+        }
+        protected Boolean doInBackground(Object... objs) {
+            //Log.d("dib","len="+objs.length+" "+objs);
+            try {
+                OSCMessage message = new OSCMessage(mAddress, Arrays.asList(objs));
+                mOSCPortOut.send(message);
+            } catch (Exception e) {
+                Log.e("OSCSendMessageTask","Unknown exception "+e);
+            }
+            return true;
+        }
+    }
+
+    // ======================================================================
+    private class GridOSCController {
+        private int lastPressure = -1, lastModulationX = -1, lastModulationY = -1;
+        public void sendPressure(int channel, float p) {
+            int pi = (int)clamp(0f, 127f, p);
+            if(pi != lastPressure) {
+                //Log.d("sendPressure", String.format("/vkb_midi/%d/channelpressure=%d", channel, pi));
+                new OSCSendMessageTask(String.format("/vkb_midi/%d/channelpressure",channel)).execute(pi);
+                lastPressure = pi;
+            }
+        }
+        public void sendModulationX(int channel, float mx) {
+            int mxi = (int)clamp(0f,1f*0x3fff,0x2000 + (0x2000*(mx/(mPitchBendRange*mCellWidth))));
+            if(mxi != lastModulationX) {
+                //Log.d("sendModulationX", String.format("/vkb_midi/%d/pitch=%d", channel, mxi));
+                new OSCSendMessageTask(String.format("/vkb_midi/%d/pitch",channel)).execute(mxi);
+                lastModulationX = mxi;
+            }
+        }
+        public void sendModulationY(int channel, float my) {
+            int myi = (int)clamp(0f, 127f, 127f*(Math.abs(my)/mCellHeight));
+            if(myi != lastModulationY) {
+                //Log.d("sendModulationY",String.format("/vkb_midi/%d/cc/%d=%d",channel,mModulationYControl,myi));
+                new OSCSendMessageTask(String.format("/vkb_midi/%d/cc/%d",channel,mModulationYControl)).execute(myi);
+                lastModulationY = myi;
+            }
+        }
+        public void sendNote(int channel, int note, float velocity) {
+            int vi = (int)clamp(0f, 127f, (float)Math.floor(velocity*127 + 0.5f));
+            //Log.d("sendNote",String.format("/vkb_midi/%d/note/%d=%d",channel,note,vi));
+            new OSCSendMessageTask(String.format("/vkb_midi/%d/note/%d",channel,note)).execute(vi);
+        }
+
+    }
+
+    // ======================================================================
+    private class GridFinger {
+        public int       channel      = 0;
+        public PointF    touch        = new PointF();
+        public PointF    current      = new PointF();
+        public float     pressure     = 0.0f;
+        public float[]   lightMatrix  = new float[16];
+        public GridRects lightRect    = new GridRects(0.5f, 0.5f, 0.5f, 1.0f);
+        public boolean   active       = false;
+        public int       note         = 0;
+
+        GridFinger(int c) {
+            channel = c;
+        }
+        public float getModulationX() {
+            return current.x - touch.x;
+        }
+        public float getModulationY() {
+            return current.y - touch.y;
+        }
+        public void setPressure(float p) {
+            // scale (minDomain,maxDomain) value to (minRange,maxRange)
+            pressure = clamp(mMinPressureRange, mMaxPressureRange,
+                    (p - mMinPressureDomain) / (mMaxPressureDomain-mMinPressureDomain));
+        }
+        private void eventDown() {
+            touch.set(current);
+            note = xyToNote(touch.x, touch.y);
+            if(active) {
+                Log.e("eventDown",String.format("MISSED NOTE OFF on Channel %d", channel));
+            }
+            active = true;
+            // light rect
+            float x = (float)Math.floor(touch.x/mCellWidth)*mCellWidth + mCellWidth/2;
+            float y = (float)Math.floor(touch.y/mCellHeight)*mCellHeight + mCellHeight / 2;
+            Matrix.setIdentityM(lightMatrix, 0);
+            Matrix.translateM(lightMatrix, 0, x, y, 0.0f);
+            lightRect.setModelMatrix(lightMatrix);
+            lightRect.setColor(pressure, pressure, pressure, 1.0f);
+
+            mOSC.sendPressure(channel, 0f);
+            mOSC.sendModulationX(channel, 0f);
+            mOSC.sendModulationY(channel, 0f);
+            mOSC.sendNote(channel, note, pressure);
+        }
+        private void eventUp() {
+            if(!active) {
+                Log.e("eventUp",String.format("MISSED NOTE ON on Channel %d", channel));
+            }
+            active = false;
+            // light rect offscreen
+            Matrix.setIdentityM(lightMatrix, 0);
+            Matrix.translateM(lightMatrix, 0, -mCellWidth / 2, -mCellHeight / 2, 0.0f);
+            lightRect.setModelMatrix(lightMatrix);
+
+            mOSC.sendNote(channel, note, 0.0f);
+        }
+        private void eventMove() {
+            if(!active) {
+                if(getModulationX() + getModulationY() != 0) {
+                    Log.e("eventMove", String.format("MISSING NOTE ON on Channel %d", channel));
+                }
+            }
+            lightRect.setColor(pressure, pressure, pressure, 1.0f);
+
+            mOSC.sendModulationX(channel, getModulationX());
+            mOSC.sendModulationY(channel, getModulationY());
+        }
     }
 
     /* for debug
@@ -338,5 +353,5 @@ public class GridGLSurfaceView extends GLSurfaceView {
                     pointerId, pointerX, pointerY));
         }
     }
-*/
+    */
 }
