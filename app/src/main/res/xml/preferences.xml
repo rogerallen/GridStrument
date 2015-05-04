@@ -3,20 +3,25 @@
     <EditTextPreference
         android:title="Server IP Address"
         android:key="server_ip"
-        android:summary="Please provide the destination computer IP address."></EditTextPreference>
+        android:defaultValue="@string/default_host_ip"
+        android:summary="Please provide the destination computer IP address."/>
     <EditTextPreference
         android:title="Server Port Number"
         android:key="server_port"
         android:inputType="number"
-        android:summary="Please provide the destination computer port."></EditTextPreference>
-    <EditTextPreference
+        android:defaultValue="@string/default_host_port"
+        android:summary="Please provide the destination computer port."/>
+    <ListPreference
         android:title="Pitch Bend Range"
         android:key="pitch_bend_range"
-        android:inputType="number"
-        android:summary="Please provide the range for pitch bending."></EditTextPreference>
+        android:entries="@array/pitch_bend_range_array"
+        android:entryValues="@array/pitch_bend_range_array"
+        android:defaultValue="@string/default_pitch_bend_range"
+        android:summary="Please provide the range for pitch bending."/>
     <EditTextPreference
         android:title="Starting Note"
         android:key="base_note"
         android:inputType="number"
-        android:summary="Please provide the midi value for the lower-left note."></EditTextPreference>
+        android:defaultValue="@string/default_base_note"
+        android:summary="Please provide the midi value for the lower-left note."/>
 </PreferenceScreen>
