@@ -114,7 +114,7 @@ public class MainActivity extends ActionBarActivity {
             Log.d("select", "NOTES OFF!");
             if (mOSCPortOut != null) {
                 for (int c = 0; c < 16; c++) {
-                    new OSCSendMessageTask("/allNotesOff").execute(c);
+                    new OSCSendMessageTask(String.format("/vkb_midi/%d/cc/%d",c,123)).execute(0);
                 }
             }
             return true;

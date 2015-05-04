@@ -309,6 +309,7 @@ public class GridGLSurfaceView extends GLSurfaceView {
             }
             lightRect.setColor(pressure, pressure, pressure, 1.0f);
 
+            mOSC.sendPressure(channel, pressure);
             mOSC.sendModulationX(channel, getModulationX());
             mOSC.sendModulationY(channel, getModulationY());
         }

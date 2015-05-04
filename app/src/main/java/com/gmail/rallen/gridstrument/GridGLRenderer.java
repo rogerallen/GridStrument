@@ -13,7 +13,7 @@ import javax.microedition.khronos.opengles.GL10;
 /**
  * GridGLRenderer
  */
-public class GridGLRenderer implements GLSurfaceView.Renderer {
+class GridGLRenderer implements GLSurfaceView.Renderer {
 
     private float[] mVPMatrix = new float[16];
     private ArrayList<GridDrawables> mSceneItems = new ArrayList<>();
@@ -37,6 +37,7 @@ public class GridGLRenderer implements GLSurfaceView.Renderer {
     }
 
     public void clearItems() {
+        //noinspection StatementWithEmptyBody
         while(mUsingSceneItems); // wait for drawing to be done
         mSceneItems.clear();
     }
@@ -86,7 +87,7 @@ public class GridGLRenderer implements GLSurfaceView.Renderer {
      */
     public static void checkGlError(String glOperation) {
         int error;
-        while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
+        if ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
             Log.e("GridGLRenderer", glOperation + ": glError " + error);
             throw new RuntimeException(glOperation + ": glError " + error);
         }

@@ -7,6 +7,6 @@
     <string name="default_pitch_bend_range">12</string>
     <string name="default_base_note">48</string>
 
-    <string name="action_settings">Settings...</string>
+    <string name="action_settings">Settings…</string>
     <string name="action_notes_off">Notes Off</string>
 </resources>

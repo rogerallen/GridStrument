@@ -58,9 +58,9 @@ public class GridDrawables {
         mCoords.clear();
     }
 
-    public void add() {
+    /*public void add() {
         // I do nothing.  Typically you would add coordinates & make it dirty
-    }
+    }*/
 
     private void setup() {
         if(!dirty) {
