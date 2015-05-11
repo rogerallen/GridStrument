@@ -213,7 +213,7 @@ public class GridGLSurfaceView extends GLSurfaceView {
     private class GridOSCController {
         private int lastPressure = -1, lastModulationX = -1, lastModulationY = -1;
         public void sendPressure(int channel, float p) {
-            int pi = (int)clamp(0f, 127f, p);
+            int pi = (int)clamp(0f, 127f, (float)Math.floor(p*127 + 0.5f));
             if(pi != lastPressure) {
                 //Log.d("sendPressure", String.format("/vkb_midi/%d/channelpressure=%d", channel, pi));
                 new OSCSendMessageTask(String.format("/vkb_midi/%d/channelpressure",channel)).execute(pi);

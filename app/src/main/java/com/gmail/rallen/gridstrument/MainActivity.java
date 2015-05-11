@@ -4,12 +4,14 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 
 import com.illposed.osc.OSCMessage;
 import com.illposed.osc.OSCPortOut;
@@ -31,10 +33,7 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Create a non-GL View
-        //setContentView(R.layout.sample_grid_view);
-
-        // or, create a GLSurfaceView instance and set it
+        // create a GLSurfaceView instance and set it
         // as the ContentView for this Activity.
         mGLView = new GridGLSurfaceView(this);
         setContentView(mGLView);
@@ -46,6 +45,42 @@ public class MainActivity extends ActionBarActivity {
         SetupOSC();
 
     }
+    /* TODO figure out how to go fullscreen + use the actionbar
+     * http://stackoverflow.com/questions/30104190/showing-the-actionbar-in-immersive-sticky-mode
+    // this works, but when enabled, I've lost my actionbar.
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            View decorView = getWindow().getDecorView();
+            decorView.setOnSystemUiVisibilityChangeListener
+                    (new View.OnSystemUiVisibilityChangeListener() {
+                        @Override
+                        public void onSystemUiVisibilityChange(int visibility) {
+                            // Note that system bars will only be "visible" if none of the
+                            // LOW_PROFILE, HIDE_NAVIGATION, or FULLSCREEN flags are set.
+                            if ((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
+                                // The system bars are visible.
+                                ActionBar actionBar = getSupportActionBar();
+                                actionBar.show();
+                            } else {
+                                // The system bars are NOT visible.
+                                ActionBar actionBar = getSupportActionBar();
+                                actionBar.hide();
+                            }
+                        }
+                    });
+            decorView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+
+        }
+    }
+    */
 
     private void SetupOSC() {
         boolean needsUpdate = false;
