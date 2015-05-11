@@ -16,6 +16,8 @@ set it to use the control surface Default OSC config.
 It is ready for others to try it out--provided you can build it and
 figure out how to integrate an OSC controller to your DAW.
 
+Also working with [Overtone](https://github.com/overtone/overtone).  See an example here: https://github.com/rogerallen/explore_overtone/blob/master/src/explore_overtone/gridstrument.clj
+
 Now looking for sounds & synths that especially benefit from the
 instrument interface.
 
