@@ -18,10 +18,4 @@
         android:entryValues="@array/pitch_bend_range_array"
         android:defaultValue="@string/default_pitch_bend_range"
         android:summary="Please provide the range for pitch bending."/>
-    <EditTextPreference
-        android:title="Starting Note"
-        android:key="base_note"
-        android:inputType="number"
-        android:defaultValue="@string/default_base_note"
-        android:summary="Please provide the midi value for the lower-left note."/>
 </PreferenceScreen>

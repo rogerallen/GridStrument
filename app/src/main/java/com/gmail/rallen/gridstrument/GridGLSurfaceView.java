@@ -22,11 +22,8 @@ public class GridGLSurfaceView extends GLSurfaceView {
     private static final int MAX_NOTES = 16;  // maybe 2 players can drive?
 
     // configuration options
-    private int mPitchBendRange       = 12;    // how far to stretch? 1 grid unit?  12?
-    private float mBaseNote           = 48.0f; // which note is in lower-left corner
-    // C.D.EF.G.A.BC
-    // 0123456789012
-    private float mStride             = 5.0f;  // 5 matches the LinnStrument default
+    private int  mPitchBendRange       = 12;    // how far to stretch? 1 grid unit?  12?
+    private ArrayList<Integer> mBaseNotes = new ArrayList<>();
     private int   mModulationYControl = 1;     // 1=mod wheel, 2=breath control, etc
     private float mMinPressureDomain  = 0.10f; // linear region to map from...
     private float mMaxPressureDomain  = 0.45f;
@@ -34,11 +31,15 @@ public class GridGLSurfaceView extends GLSurfaceView {
     private float mMaxPressureRange   = 1.0f;
     private float mFingerSizeInches   = 0.6f;
 
+    // main app
+    private MainActivity mMainActivity = null;
+
     // rendering vars...
     private final GridGLRenderer mRenderer;
     private GridLines mGridLines;
     private ArrayList<GridRects> mNoteRects;
     private float mXdpi, mYdpi;
+    private int mDisplayWidth, mDisplayHeight;
     private float mCellWidth, mCellHeight;
 
     private OSCPortOut mOSCPortOut;
@@ -71,32 +72,55 @@ public class GridGLSurfaceView extends GLSurfaceView {
     }
 
     // ======================================================================
-    public GridGLSurfaceView(Context context) {
+    public GridGLSurfaceView(Context context, ArrayList<Integer> baseNotes) {
         super(context);
+        mMainActivity = (MainActivity)context;
         setEGLContextClientVersion(2);
         mRenderer = new GridGLRenderer();
         setRenderer(mRenderer);
         mXdpi = mYdpi = 200;
         mCellWidth = mCellHeight = 200f;
+        mBaseNotes.addAll(baseNotes);
     }
 
+    public ArrayList<Integer> getBaseNotes() {
+        return mBaseNotes;
+    }
     public void setDPI(float xdpi, float ydpi) {
         mXdpi = xdpi;
         mYdpi = ydpi;
     }
     public void setPitchBendRange(int n) {
+        // TODO send OSC message to the server so they can understand this automatically
         mPitchBendRange = n;
     }
-    public void setBaseNote(int n) {
-        mBaseNote = n;
+    public void setBaseNotes(ArrayList<Integer> baseNotes) {
+        assert(baseNotes.size() == mBaseNotes.size());
+        for(int i = 0; i < baseNotes.size(); i++) {
+            mBaseNotes.set(i,baseNotes.get(i));
+        }
+        int numHorizCells = (int) Math.ceil(mDisplayWidth / mCellWidth) + 1;
+        int numVertCells = (int) Math.ceil(mDisplayHeight / mCellHeight) + 1;
+        int k = 0;
+        for (int i = 0; i <= numHorizCells; i++) {
+            for(int j = 0; j <= numVertCells; j++, k++) {
+                int note = xyToNote(i*mCellWidth+1,j*mCellHeight+1);
+                float[] curColor = mNoteColors[note % 12];
+                mNoteRects.get(k).setColor(curColor[0],curColor[1],curColor[2],curColor[3]);
+            }
+        }
     }
-
     public void setOSCPortOut(OSCPortOut aOSCPortOut) {
         mOSCPortOut = aOSCPortOut;
     }
     public int xyToNote(float x, float y) {
-        return (int)clamp(0f, 127f,
-                (float)(mBaseNote + Math.floor(x/mCellWidth) +  mStride*Math.floor(y/mCellHeight)));
+        int curColumn = (int)Math.floor(x/mCellWidth);
+        int curRow = (int)Math.floor(y/mCellHeight);
+        if(curRow >= mBaseNotes.size()) {
+            curRow = mBaseNotes.size()-1;
+        }
+        float baseNote = mBaseNotes.get(curRow);
+        return (int)clamp(0f, 127f, baseNote + curColumn);
     }
 
     private void resetRenderer() {
@@ -115,10 +139,26 @@ public class GridGLSurfaceView extends GLSurfaceView {
 
         mCellWidth = mFingerSizeInches * mXdpi;
         mCellHeight = mFingerSizeInches * mYdpi;
-        int numHorizCells = (int) Math.ceil((right - left) / mCellWidth) + 1;
-        int numVertCells = (int) Math.ceil((bottom - top) / mCellHeight) + 1;
+        mDisplayWidth = (right - left);
+        mDisplayHeight = (bottom - top);
+        int numHorizCells = (int) Math.ceil(mDisplayWidth / mCellWidth) + 1;
+        int numVertCells = (int) Math.ceil(mDisplayHeight / mCellHeight) + 1;
+        Log.d("onLayout","h="+numHorizCells+" v="+numVertCells);
         mGridLines = new GridLines(0.9f, 0.9f, 0.9f, 1.0f);
         mNoteRects = new ArrayList<>();
+        if(mBaseNotes.size() != numVertCells) {
+            int oldSize = mBaseNotes.size();
+            if(oldSize < numVertCells) {
+                for (int i = oldSize; i < numVertCells; i++) {
+                    mBaseNotes.add(mBaseNotes.get(oldSize - 1) + 5); // have to pick something
+                }
+            } else {
+                for(int i = oldSize-1; i >= numVertCells; i--) {
+                    mBaseNotes.remove(i);
+                }
+            }
+            mMainActivity.ResizeBaseNotes(mBaseNotes);
+        }
         //mGridLines.reset();
         for (int i = 0; i <= numHorizCells; i++) {
             mGridLines.add((float) i * mCellWidth, 0.0f, 0.0f, (float) i * mCellWidth, (float) numHorizCells * mCellHeight, 0.0f);

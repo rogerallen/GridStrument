@@ -54,14 +54,6 @@ public class MainPreferenceActivity extends PreferenceActivity {
                         return ((value >= 1) && (value <= 24));
                     }
                 });
-            findPreference("base_note").setOnPreferenceChangeListener(
-                    new Preference.OnPreferenceChangeListener() {
-                        @Override
-                        public boolean onPreferenceChange(Preference preference, Object newValue) {
-                            int value = ParseInt((String) newValue);
-                            return ((value >= 0) && (value <= 127));
-                        }
-                    });
         }
 
         private static int ParseInt(String newValue) {

@@ -5,7 +5,8 @@
     <string name="default_host_ip">10.10.0.19</string>
     <string name="default_host_port">8675</string>
     <string name="default_pitch_bend_range">12</string>
-    <string name="default_base_note">48</string>
+
+    <string name="default_num_base_notes">6</string>
 
     <string name="action_settings">Settings…</string>
     <string name="action_tuning">Tuning…</string>

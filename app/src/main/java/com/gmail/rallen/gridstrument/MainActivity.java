@@ -31,15 +31,16 @@ public class MainActivity
     private int        mOSCServerPort = 0;
     private OSCPortOut mOSCPortOut    = null;
 
+    private ArrayList<Integer> mBaseNotes = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // create a GLSurfaceView instance and set it
-        // as the ContentView for this Activity.
-        mGLView = new GridGLSurfaceView(this);
-        setContentView(mGLView);
+        SetupBaseNotes();
 
+        mGLView = new GridGLSurfaceView(this, mBaseNotes);
+        setContentView(mGLView);
         DisplayMetrics dm = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(dm);
         mGLView.setDPI(dm.xdpi,dm.ydpi);
@@ -47,6 +48,7 @@ public class MainActivity
         SetupOSC();
 
     }
+
     /* TODO figure out how to go fullscreen + use the actionbar
      * http://stackoverflow.com/questions/30104190/showing-the-actionbar-in-immersive-sticky-mode
     // this works, but when enabled, I've lost my actionbar.
@@ -84,6 +86,27 @@ public class MainActivity
     }
     */
 
+    private void SetupBaseNotes() {
+        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        int default_num = Integer.parseInt(getString(R.string.default_num_base_notes));
+        int numBaseNotes = SP.getInt("num_base_notes", default_num);
+        for(int i = 0; i < numBaseNotes; i++) {
+            mBaseNotes.add(SP.getInt("base_note_" + i, 48 + 5 * i));
+        }
+    }
+
+    public void ResizeBaseNotes(ArrayList<Integer> baseNotes) {
+        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        SharedPreferences.Editor editor = SP.edit();
+        editor.putInt("num_base_notes", baseNotes.size());
+        mBaseNotes.clear();
+        for(int i = 0; i < baseNotes.size(); i++) {
+            mBaseNotes.add(i,baseNotes.get(i));
+            editor.putInt("base_note_" + i,baseNotes.get(i));
+        }
+        editor.commit();
+    }
+
     private void SetupOSC() {
         boolean needsUpdate = false;
 
@@ -91,11 +114,9 @@ public class MainActivity
         String prefServerIP = SP.getString("server_ip", getString(R.string.default_host_ip));
         int prefServerPortNum = GetIntDefault(SP,"server_port",R.string.default_host_port);
         int prefPitchBendRangeNum = GetIntDefault(SP,"pitch_bend_range",R.string.default_pitch_bend_range);
-        int prefBaseNoteNum = GetIntDefault(SP,"base_note", R.string.default_base_note);
         Log.i("preferences", "server_ip        = " + prefServerIP);
         Log.i("preferences", "server_port      = " + prefServerPortNum);
         Log.i("preferences", "pitch_bend_range = " + prefPitchBendRangeNum);
-        Log.i("preferences", "base_note        = " + prefBaseNoteNum);
         if(!mOSCServerIP.equals(prefServerIP)) {
             needsUpdate = true;
             mOSCServerIP = prefServerIP;
@@ -106,7 +127,6 @@ public class MainActivity
         }
         // no harm to always setting these
         mGLView.setPitchBendRange(prefPitchBendRangeNum);
-        mGLView.setBaseNote(prefBaseNoteNum);
 
         if(needsUpdate) {
             try {
@@ -126,6 +146,7 @@ public class MainActivity
 
     }
 
+    // get value from shared preference, but if not found, get it from the resource_id
     private int GetIntDefault(SharedPreferences SP, String s, int default_id) {
         String prefStr = SP.getString(s, getString(default_id));
         int v;
@@ -133,6 +154,18 @@ public class MainActivity
             v = Integer.parseInt(prefStr);
         } catch(NumberFormatException ex) {
             v = Integer.parseInt(getString(default_id));
+        }
+        return v;
+    }
+
+    // get value from shared preference, but if not found, get it from the default_value
+    private int GetIntDefaultInt(SharedPreferences SP, String s, int default_value) {
+        String prefStr = SP.getString(s, ""+default_value);
+        int v;
+        try {
+            v = Integer.parseInt(prefStr);
+        } catch(NumberFormatException ex) {
+            v = default_value;
         }
         return v;
     }
@@ -162,10 +195,7 @@ public class MainActivity
             return true;
         case R.id.action_tuning:
             Log.d("select", "tuning...");
-            ArrayList<Integer> v = new ArrayList<>();
-            v.add(3);
-            v.add(5);
-            v.add(7);
+            ArrayList<Integer> v = mGLView.getBaseNotes();
             TuningDialogFragment dialog = TuningDialogFragment.newInstance(v);
             dialog.show(getSupportFragmentManager(), "TuningDialogFragment");
             return true;
@@ -200,11 +230,13 @@ public class MainActivity
     }
 
     public void onTuningDialogDone(ArrayList<Integer> values) {
-        Log.d("dialog","Got the Values!");
-        // turn off the keyboard entry
+        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        SharedPreferences.Editor editor = SP.edit();
         for(int i = 0; i < values.size(); i++) {
-            Log.d("dialog","i="+i+" v="+values.get(i));
+            mBaseNotes.set(i,values.get(i));
+            editor.putInt("base_note_" + i,values.get(i));
         }
-
+        editor.commit();
+        mGLView.setBaseNotes(mBaseNotes);
     }
 }

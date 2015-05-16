@@ -11,6 +11,8 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 
 // found a template for this at
@@ -81,7 +83,33 @@ public class TuningDialogFragment extends DialogFragment {
             numPickers[i].setDescendantFocusability(NumberPicker.FOCUS_BLOCK_DESCENDANTS);
             numPickers[i].setMaxValue(127);
             numPickers[i].setMinValue(0);
+            numPickers[i].setFormatter(new NumberPicker.Formatter() {
+                String[] notes = new String[]{"C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"};
+                @Override
+                public String format(int value) {
+                    int note = value % 12;
+                    String noteString = notes[note];
+                    String octaveString = " " + ((value / 12) - 1);
+                    return noteString + octaveString;
+                }
+            });
             numPickers[i].setValue(values.get(i));
+            // OMFG Google WTF? https://code.google.com/p/android/issues/detail?id=35482
+            // This causes horrible exceptions in the ADB logs, but is otherwise harmless, I guess.
+            // Without this, the selected values are not properly displayed.
+            try {
+                Method method = numPickers[i].getClass().getDeclaredMethod("changeValueByOne", boolean.class);
+                method.setAccessible(true);
+                method.invoke(numPickers[i], true);
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
+            }
             linLayoutH.addView(numPickers[i]);
         }
 
