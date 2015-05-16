@@ -4,23 +4,25 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
-import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 
 import com.illposed.osc.OSCMessage;
 import com.illposed.osc.OSCPortOut;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity
+        extends ActionBarActivity
+        implements TuningDialogFragment.OnTuningDialogDoneListener
+{
     private final static int PREF_REQ_CODE = 99;
 
     private GridGLSurfaceView mGLView;
@@ -156,7 +158,16 @@ public class MainActivity extends ActionBarActivity {
         case R.id.action_settings:
             Log.d("select", "preferences...");
             Intent i = new Intent(this, MainPreferenceActivity.class);
-            startActivityForResult(i,PREF_REQ_CODE);
+            startActivityForResult(i, PREF_REQ_CODE);
+            return true;
+        case R.id.action_tuning:
+            Log.d("select", "tuning...");
+            ArrayList<Integer> v = new ArrayList<>();
+            v.add(3);
+            v.add(5);
+            v.add(7);
+            TuningDialogFragment dialog = TuningDialogFragment.newInstance(v);
+            dialog.show(getSupportFragmentManager(), "TuningDialogFragment");
             return true;
         default:
             return super.onOptionsItemSelected(item);
@@ -186,5 +197,14 @@ public class MainActivity extends ActionBarActivity {
             }
             return true;
         }
+    }
+
+    public void onTuningDialogDone(ArrayList<Integer> values) {
+        Log.d("dialog","Got the Values!");
+        // turn off the keyboard entry
+        for(int i = 0; i < values.size(); i++) {
+            Log.d("dialog","i="+i+" v="+values.get(i));
+        }
+
     }
 }

@@ -5,8 +5,12 @@
         android:title="@string/action_settings"
         android:orderInCategory="100"
         app:showAsAction="never" />
+    <item android:id="@+id/action_tuning"
+        android:title="@string/action_tuning"
+        android:orderInCategory="101"
+        app:showAsAction="never" />
     <item android:id="@+id/action_notes_off"
         android:title="@string/action_notes_off"
-        android:orderInCategory="101"
+        android:orderInCategory="102"
         app:showAsAction="never" />
 </menu>
