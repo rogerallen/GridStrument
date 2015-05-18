@@ -99,11 +99,11 @@ public class GridGLSurfaceView extends GLSurfaceView {
         for(int i = 0; i < baseNotes.size(); i++) {
             mBaseNotes.set(i,baseNotes.get(i));
         }
-        int numHorizCells = (int) Math.ceil(mDisplayWidth / mCellWidth) + 1;
-        int numVertCells = (int) Math.ceil(mDisplayHeight / mCellHeight) + 1;
+        int numHorizLines = (int) Math.ceil(mDisplayWidth / mCellWidth) + 1;
+        int numVertLines = (int) Math.ceil(mDisplayHeight / mCellHeight) + 1;
         int k = 0;
-        for (int i = 0; i <= numHorizCells; i++) {
-            for(int j = 0; j <= numVertCells; j++, k++) {
+        for (int i = 0; i <= numHorizLines; i++) {
+            for(int j = 0; j <= numVertLines; j++, k++) {
                 int note = xyToNote(i*mCellWidth+1,j*mCellHeight+1);
                 float[] curColor = mNoteColors[note % 12];
                 mNoteRects.get(k).setColor(curColor[0],curColor[1],curColor[2],curColor[3]);
@@ -141,9 +141,10 @@ public class GridGLSurfaceView extends GLSurfaceView {
         mCellHeight = mFingerSizeInches * mYdpi;
         mDisplayWidth = (right - left);
         mDisplayHeight = (bottom - top);
-        int numHorizCells = (int) Math.ceil(mDisplayWidth / mCellWidth) + 1;
-        int numVertCells = (int) Math.ceil(mDisplayHeight / mCellHeight) + 1;
-        Log.d("onLayout","h="+numHorizCells+" v="+numVertCells);
+        int numHorizLines = (int) Math.ceil(mDisplayWidth / mCellWidth) + 1;
+        int numVertLines = (int) Math.ceil(mDisplayHeight / mCellHeight) + 1;
+        int numVertCells = numVertLines - 1;
+        Log.d("onLayout","h="+numHorizLines+" v="+numVertLines);
         mGridLines = new GridLines(0.9f, 0.9f, 0.9f, 1.0f);
         mNoteRects = new ArrayList<>();
         if(mBaseNotes.size() != numVertCells) {
@@ -160,10 +161,10 @@ public class GridGLSurfaceView extends GLSurfaceView {
             mMainActivity.ResizeBaseNotes(mBaseNotes);
         }
         //mGridLines.reset();
-        for (int i = 0; i <= numHorizCells; i++) {
-            mGridLines.add((float) i * mCellWidth, 0.0f, 0.0f, (float) i * mCellWidth, (float) numHorizCells * mCellHeight, 0.0f);
-            mGridLines.add(0.0f, (float) i * mCellHeight, 0.0f, (float) numHorizCells * mCellWidth, (float) i * mCellHeight, 0.0f);
-            for(int j = 0; j <= numVertCells; j++) {
+        for (int i = 0; i <= numHorizLines; i++) {
+            mGridLines.add((float) i * mCellWidth, 0.0f, 0.0f, (float) i * mCellWidth, (float) numHorizLines * mCellHeight, 0.0f);
+            mGridLines.add(0.0f, (float) i * mCellHeight, 0.0f, (float) numHorizLines * mCellWidth, (float) i * mCellHeight, 0.0f);
+            for(int j = 0; j <= numVertLines; j++) {
                 int note = xyToNote(i*mCellWidth+1,j*mCellHeight+1);
                 float[] curColor = mNoteColors[note % 12];
                 GridRects curRect = new GridRects(curColor[0],curColor[1],curColor[2],curColor[3]);

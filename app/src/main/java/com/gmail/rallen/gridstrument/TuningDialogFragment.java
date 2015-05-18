@@ -131,7 +131,7 @@ public class TuningDialogFragment extends DialogFragment {
                 });
         params.gravity = Gravity.CENTER_HORIZONTAL;
         okButton.setLayoutParams(params);
-        okButton.setText("Done");
+        okButton.setText("Done"); // TODO - remove?  Back button could also set this.
         // TODO - Cancel button?
         linLayoutV.addView(okButton);
 
